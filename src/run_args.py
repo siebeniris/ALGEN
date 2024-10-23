@@ -9,7 +9,7 @@ from transformers import MODEL_FOR_CAUSAL_LM_MAPPING
 @dataclass
 class ModelArguments:
 
-    encoder_decoder_path: str = field(
+    encoder_decoder_name_or_path: str = field(
         default="google/mt5-base",
         metadata={
             "help":(
@@ -62,6 +62,9 @@ class ModelArguments:
             "choices": ["auto", "bfloat16", "float16", "float32"],
         },
     )
+    use_lora: bool = field(
+        default=False, metadata={"help": "Whether to use LORA+int8 for fine-tuning"}
+    )
 
 
 @dataclass
@@ -88,6 +91,7 @@ class DataArguments:
     )
 
 
+
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
     # https://github.com/huggingface/transformers/blob/e82c1cb78e178519060b9391214727be75a218ca/src/transformers/training_args.py#L121
@@ -102,7 +106,7 @@ class TrainingArguments(transformers.TrainingArguments):
         metadata={"required": False, "help": "Size of pseudo-training set."},
     )
     num_train_epochs: float = field(
-        default=50.0,
+        default=10,
         metadata={"required": False, "help": "Number of epochs for training"},
     )
     learning_rate: float = field(
@@ -114,15 +118,20 @@ class TrainingArguments(transformers.TrainingArguments):
     )
     report_to: str = "wandb"
     per_device_train_batch_size: int = field(
-        default=256, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
+        default=2, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
     )
     per_device_eval_batch_size: int = field(
-        default=256, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
+        default=2, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
     )
 
     bf16: bool = field(
         default=False,
         metadata={"help": ("Whether to use bf16 (mixed) precision instead of 32-bit.")},
+    )
+
+    logging_dir:str =field(
+        default="./logs",
+        metadata={"help": "Where to log the output..."}
     )
     # torch_compile: bool = True # for torch 2
 
@@ -220,6 +229,7 @@ class TrainingArguments(transformers.TrainingArguments):
     )
 
     include_inputs_for_metrics: bool = True
+    use_mps_device: bool=True
 
     def __setattr__(self, name, value):
         super(transformers.TrainingArguments, self).__setattr__(name, value)

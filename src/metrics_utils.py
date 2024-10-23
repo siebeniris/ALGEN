@@ -14,6 +14,9 @@ class CosineSimilarityLoss(nn.Module):
         loss = 1 - cos_sim.mean()
         return loss
 
+
 def evaluate_bleu(predictions, references):
     bleu_metric = evaluate.load('sacrebleu')
     return bleu_metric.compute(predictions=predictions, references=[[ref] for ref in references])
+
+

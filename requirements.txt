@@ -1,0 +1,8 @@
+transformers
+plac
+pandas
+nltk
+datasets
+jupyterlab
+evaluate
+scikit-learn
