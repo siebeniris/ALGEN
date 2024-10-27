@@ -58,8 +58,6 @@ class FewShotInversionModel(transformers.PreTrainedModel):
 
         self.alignment_strategy = config.aligning_strategy
 
-        if self.alignment_strategy=="linear":
-            self.aligner = nn.Linear(self.embedd_dim, self.encoder_hidden_dim)
 
 
 
@@ -120,13 +118,38 @@ class FewShotInversionModel(transformers.PreTrainedModel):
         embedder_embeddings = self._process_embeddings(model_output, attention_mask)
 
         encoder = self.encoder_decoder.encoder
-        encoder_embeddings = encoder(input_ids= input_ids, attention_mask=attention_mask)
+        encoder_output = encoder(input_ids= input_ids, attention_mask=attention_mask)
+        encoder_embeddings = self._process_embeddings(encoder_output, attention_mask)
 
         # TODO:implement alignment here.
+        if self.embedder_dim != self.encoder_hidden_dim:
+            self.linear_aligner = nn.Linear(self.embedd_dim, self.encoder_hidden_dim)
+            embedder_embeddings = self.alginer(embedder_embeddings)
 
-        aligned_embedding = self.alginer(embedder_embeddings)
+        # TODO: do we need a transform?
+        # self.embedding_transform = nn.Sequential(
+        #     nn.Linear(self.embedder_dim, bottleneck_dim),
+        #     nn.Dropout(self.encoder_decoder.config.dropout_rate),
+        #     nn.GELU(),  # TODO consider dropout or normalization here.
+        #     nn.Linear(bottleneck_dim, encoder_hidden_dim * num_repeat_tokens),
+        # )
 
-        return aligned_embedding
+        if self.alignment_strategy == "svd":
+            embedder_embeddings = self._procrustes_algin(embedder_embeddings, encoder_embeddings)
+        elif self.alignment_strategy == "ot":
+            embedder_embeddings = self._optimal_transport_align(embedder_embeddings, encoder_embeddings)
+
+        attention_mask = torch.ones(
+            (embedder_embeddings.shape[0], embedder_embeddings.shape[1]), device=embedder_embeddings.device
+        )
+
+        return embedder_embeddings, attention_mask
+
+
+
+
+
+
 
 
 
