@@ -28,6 +28,11 @@ class ModelArguments:
     embedder_model_api: Optional[str] = field(
         default=None, metadata={"help": "API to get embeddings from"}
     )
+    embedder_dim: int = field(
+        default=768, metadata={
+            "help": "API embedder hidden dim needs to be specified."
+        }
+    )
     embedder_torch_dtype: str = field(
         default="float32",
         metadata={
@@ -64,6 +69,12 @@ class ModelArguments:
     )
     use_lora: bool = field(
         default=False, metadata={"help": "Whether to use LORA+int8 for fine-tuning"}
+    )
+
+    aligning_strategy: str = field(
+        default="linear", metadata={
+            "help": "Which strategy to use for embedding alignment"
+        }
     )
 
 

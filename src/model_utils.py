@@ -6,6 +6,24 @@ import torch.nn as nn
 import transformers
 
 
+def freeze_params(model: nn.Module):
+    total_num_params = 0
+    for name, params in model.named_parameters():
+        params.requires_grad = False
+        total_num_params += params.numel()
+    # print(f"Froze {total_num_params} params from model type {type(model)}")
+
+
+def mean_pool(
+        hidden_states: torch.Tensor, attention_mask: torch.Tensor
+) -> torch.Tensor:
+    B, S, D = hidden_states.shape
+    unmasked_outputs = hidden_states * attention_mask[..., None]
+    pooled_outputs = unmasked_outputs.sum(dim=1) / attention_mask.sum(dim=1)[:, None]
+    assert pooled_outputs.shape == (B, D)
+    return pooled_outputs
+
+
 def get_device():
     """
     Function that checks for GPU availability and returns the appropriate device.
@@ -78,7 +96,7 @@ def load_embedder_and_tokenizer(name: str, output_hidden_states: bool = False):
     return model, tokenizer
 
 
-def get_encoder_embeddings(model:transformers, tokenizer, input_texts):
+def get_encoder_embeddings(model: transformers, tokenizer, input_texts):
     model.eval()
 
     embeddings = []
