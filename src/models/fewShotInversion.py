@@ -146,14 +146,6 @@ class FewShotInversionModel(transformers.PreTrainedModel):
         if self.embedder_dim != self.encoder_hidden_dim:
             embedder_embeddings = self.linear_aligner(embedder_embeddings)
 
-        # TODO: do we need a transform? before or after alignment?
-        # self.embedding_transform = nn.Sequential(
-        #     nn.Linear(self.embedder_dim, bottleneck_dim),
-        #     nn.Dropout(self.encoder_decoder.config.dropout_rate),
-        #     nn.GELU(),  # TODO consider dropout or normalization here.
-        #     nn.Linear(bottleneck_dim, encoder_hidden_dim * num_repeat_tokens),
-        # )
-
         # 2. Align embeddings using different strategies.
         if self.alignment_strategy == "svd":
             embedder_embeddings = self._procrustes_align(embedder_embeddings, encoder_embeddings)
@@ -163,6 +155,7 @@ class FewShotInversionModel(transformers.PreTrainedModel):
             # without strategy, directly after dimension alignment.
             embedder_embeddings = embedder_embeddings
 
+        # use repeat strategy to transform embeddings and reshape it in 3D
         repeated_embeddings = self.embedding_transform(embedder_embeddings)
         embeddings = repeated_embeddings.reshape(
             (*repeated_embeddings.shape[:-1], self.num_repeat_tokens, -1)
