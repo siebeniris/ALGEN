@@ -1,2 +1,2 @@
-from .aligner import LinearAligner
+from .config import InversionConfig
 from .fewShotInversion import FewShotInversionModel
