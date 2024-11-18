@@ -2,11 +2,23 @@ import torch
 
 from transformers.modeling_outputs import BaseModelOutput
 from transformers import T5Tokenizer, T5Model, T5ForConditionalGeneration
+<<<<<<< HEAD
 
 from utils import get_device
 from alignment_models import LinearAligner, NeuralAligner, EmbeddingAlignerOrthogonal
 from embeddingAlingerOT import EmbeddingAlignerOT
 
+=======
+from dataclasses import dataclass
+from typing import Optional
+import numpy as np
+import math
+import ot
+from sklearn.metrics.pairwise import cosine_similarity
+from utils import get_weights_from_attention_mask, get_device
+from alignment_models import LinearAligner, NeuralAligner, EmbeddingAlignerOrthogonal
+from embeddingAlingerOT import EmbeddingAlignerOT
+>>>>>>> bb7e12fc927a19716b10c93a8b315fbf6284cfa8
 ###################################################################################################
 ### limitation of this inversionmodel: only works on the embeddings with the same tokenizers.
 
@@ -38,7 +50,11 @@ class EmbeddingInverter(torch.nn.Module):
         self.hidden_size_S = self.encoder_S.config.hidden_size
 
         self.decoding_strategy = decoding_strategy
+<<<<<<< HEAD
         self.adjust_weights_with_magnitutde = adjust_weights_with_magnitutde
+=======
+        self.adjust_weights_with_magnitutde=adjust_weights_with_magnitutde
+>>>>>>> bb7e12fc927a19716b10c93a8b315fbf6284cfa8
         self.ot_reg = ot_reg
         self.ot_reg_m = ot_reg_m
 
@@ -172,6 +188,7 @@ class EmbeddingInverter(torch.nn.Module):
                 decoded_text = ["Error during generation"] * batch_size
         return decoded_text
 
+<<<<<<< HEAD
     def forward(self, x):
         """Forward pass for text-to-text inversion."""
         # aligning: linear and neural.
@@ -184,6 +201,15 @@ class EmbeddingInverter(torch.nn.Module):
 
         embedding_g = x["emb_g"]
         g_attention_mask = x["attention_mask_g"]
+=======
+    def forward(self, text):
+        """Forward pass for text-to-text inversion."""
+        # aligning: linear and neural.
+        # text [batch_size, seq_len]
+
+        embedding_s, input_ids_s, s_attention_mask = self.get_embeddings_S(text)
+        embedding_g, input_ids_g, g_attention_mask = self.get_embeddings_G(text)
+>>>>>>> bb7e12fc927a19716b10c93a8b315fbf6284cfa8
 
         assert embedding_s.shape[1] == embedding_g.shape[1]  # assert they have the same tokenizer
 
@@ -205,8 +231,12 @@ class EmbeddingInverter(torch.nn.Module):
         # print(aligned_embeddings.shape, attention_mask.shape, aligned_embeddings.device)
         # we can use attention_mask from embedding_s only when the seq_len is not changed for embedding_s
         # only when they have the same kind of tokenizer.
+<<<<<<< HEAD
         # return aligned_embeddings, self.decode_embeddings(aligned_embeddings, s_attention_mask)
         return aligned_embeddings
+=======
+        return aligned_embeddings, self.decode_embeddings(aligned_embeddings, s_attention_mask)
+>>>>>>> bb7e12fc927a19716b10c93a8b315fbf6284cfa8
 
     def sanity_check_random_embedding(self):
         """Check if T5 can decode random embeddings."""

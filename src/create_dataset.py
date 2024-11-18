@@ -1,6 +1,9 @@
+
+import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
-from typing import List
+from typing import List, Dict, Tuple
+from transformers import T5Tokenizer, T5Model, T5ForConditionalGeneration
 from InversionModel import EmbeddingInverter
 
 
