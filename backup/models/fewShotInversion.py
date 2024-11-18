@@ -31,7 +31,7 @@ class FewShotInversionModel(transformers.PreTrainedModel):
     embedder_no_grad: bool
     embedder_model_api: Optional[str]
 
-    def __init__(self, config:InversionConfig):
+    def __init__(self, config: InversionConfig):
         super().__init__(config=config)
         # get from model/dataset/training configs.
         self.embedder_model_api = config.embedder_model_api
@@ -84,8 +84,6 @@ class FewShotInversionModel(transformers.PreTrainedModel):
             nn.Linear(bottleneck_dim, self.encoder_hidden_dim * self.num_repeat_tokens),
         )
 
-
-
     @property
     def embedder_device(self) -> torch.device:
         return next(self.embedder.parameters()).device
@@ -94,7 +92,7 @@ class FewShotInversionModel(transformers.PreTrainedModel):
             self,
             outputs: transformers.modeling_outputs.BaseModelOutput,
             attention_mask: torch.Tensor
-        ) -> torch.Tensor:
+    ) -> torch.Tensor:
         # process embedidng from both embedder and encoder_decoder's encoder
         # TODO: discuss this. (Details)
         hidden_state = outputs.last_hidden_state
@@ -128,12 +126,12 @@ class FewShotInversionModel(transformers.PreTrainedModel):
         return X_aligned
 
     def align_embeddings(
-        self,
-        embedder_input_ids: torch.Tensor,
-        embedder_attention_masks: torch.Tensor,
-        encoder_input_ids: torch.Tensor,
-        encoder_attention_masks: torch.Tensor,
-        ) -> Tuple[torch.Tensor, torch.Tensor]:
+            self,
+            embedder_input_ids: torch.Tensor,
+            embedder_attention_masks: torch.Tensor,
+            encoder_input_ids: torch.Tensor,
+            encoder_attention_masks: torch.Tensor,
+    ) -> torch.Tensor:
         # the same input text and attention mask to black-box and white-box encoders.
         embedder = self.embedder
         embedder.eval()
@@ -146,6 +144,7 @@ class FewShotInversionModel(transformers.PreTrainedModel):
 
         # TODO:implement alignment here.
         # 1. align the black-box embedding dimension to the white-box embedding dimension.
+        # TODO: might not work.
         if self.embedder_dim != self.encoder_hidden_dim:
             embedder_embeddings = self.linear_aligner(embedder_embeddings)
 
@@ -158,31 +157,37 @@ class FewShotInversionModel(transformers.PreTrainedModel):
             # without strategy, directly after dimension alignment.
             embedder_embeddings = embedder_embeddings
 
+        return embedder_embeddings
+
+    def embed_and_project(
+            self,
+            embeddings: Optional[torch.Tensor]
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         # use repeat strategy to transform embeddings and reshape it in 3D
-        repeated_embeddings = self.embedding_transform(embedder_embeddings)
+
+        repeated_embeddings = self.embedding_transform(embeddings)
         embeddings = repeated_embeddings.reshape(
             (*repeated_embeddings.shape[:-1], self.num_repeat_tokens, -1)
         )
-
         attention_mask = torch.ones(
             (embeddings.shape[0], embeddings.shape[1]), device=embeddings.device
         )
         return embeddings, attention_mask
 
-    # TODO: edit this.
     def generate(
-        self,
-        inputs: Dict[str, torch.Tensor],
-        generation_kwargs: Dict[str, torch.Tensor],
+            self,
+            inputs: Dict[str, torch.Tensor],
+            generation_kwargs: Dict[str, torch.Tensor],
     ) -> torch.Tensor:
         # why make a copy?
         generation_kwargs = copy.copy(generation_kwargs)
-        inputs_embeds, attention_mask = self.align_embeddings(
+        embeds = self.align_embeddings(
             embedder_input_ids=inputs.get("embedder_input_ids"),
             embedder_attention_masks=inputs.get("embedder_attention_mask"),
             encoder_input_ids=inputs.get("encoder_input_ids"),
             encoder_attention_masks=inputs.get("encoder_attention_mask")
         )
+        inputs_embeds, attention_mask = self.embed_and_project(embeds)
 
         if "decoder_input_ids" in inputs:
             return self.encoder_decoder.generate(
@@ -208,14 +213,14 @@ class FewShotInversionModel(transformers.PreTrainedModel):
             )
 
     def forward(
-        self,
+            self,
             embedder_input_ids: torch.Tensor,
             embedder_attention_masks: torch.Tensor,
             encoder_input_ids: torch.Tensor,
             encoder_attention_masks: torch.Tensor,
-        labels: Optional[torch.Tensor] = None,
-        decoder_input_ids: Optional[torch.Tensor] = None,
-        **kwargs,
+            labels: Optional[torch.Tensor] = None,
+            decoder_input_ids: Optional[torch.Tensor] = None,
+            **kwargs,
     ) -> Dict[str, torch.Tensor]:
         # Unused: input_ids, attention_mask
         inputs_embeds, attention_mask = self.align_embeddings(
@@ -223,7 +228,7 @@ class FewShotInversionModel(transformers.PreTrainedModel):
             embedder_attention_masks=embedder_attention_masks,
             encoder_input_ids=encoder_input_ids,
             encoder_attention_masks=encoder_attention_masks
-            )
+        )
 
         # labels: input_ids,
         return self.encoder_decoder(
@@ -232,9 +237,3 @@ class FewShotInversionModel(transformers.PreTrainedModel):
             labels=labels,
             decoder_input_ids=decoder_input_ids,
         )
-
-
-
-
-
-
