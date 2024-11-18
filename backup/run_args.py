@@ -2,9 +2,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Optional
 
-
 import transformers
-from transformers import MODEL_FOR_CAUSAL_LM_MAPPING
+
 
 @dataclass
 class ModelArguments:
@@ -67,6 +66,18 @@ class ModelArguments:
             "choices": ["auto", "bfloat16", "float16", "float32"],
         },
     )
+
+    embedder_no_grad: bool = field(
+        default=True, metadata={"help": "Whether to disable grads for DPR"}
+    )
+
+    num_repeat_tokens: int = field(
+        default=16,
+        metadata={
+            "help": "Number of times to repeat embedding along T5 input sequence length."
+        },
+    )
+
     use_lora: bool = field(
         default=False, metadata={"help": "Whether to use LORA+int8 for fine-tuning"}
     )
@@ -77,13 +88,24 @@ class ModelArguments:
         }
     )
 
+    use_frozen_embeddings_as_input: bool = field(
+        default=False,
+        metadata={
+            "help": "Whether to pass a 'frozen_embedding' column and train on that instead of generating embeddings on-the-fly"
+        },
+    )
+
 
 @dataclass
 class DataArguments:
 
-    # dataset_name: Optional[str] = field(
-    #
-    # )
+    dataset_name: Optional[str] = field(
+        default="deu_Latn", # create new dataset with less than dimensional data.
+        metadata={
+            # "choices": DATASET_NAMES,
+            "help": "The name of the dataset to use (via the datasets library).",
+        },
+    )
 
     max_eval_samples:int =field(
         default=500,
@@ -100,6 +122,9 @@ class DataArguments:
             "help": {"Use a small amount of the training/eval data (for testing)"}
         },
     )
+
+
+
 
 
 

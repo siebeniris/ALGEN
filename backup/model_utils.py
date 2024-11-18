@@ -55,6 +55,7 @@ def load_encoder_decoder(
                 "device_map": "auto",
             }
         )
+    # generic model that will be instantiated as one of the model classes of the library.
     return transformers.AutoModelForSeq2SeqLM.from_pretrained(
         model_name, **model_kwargs
     )
