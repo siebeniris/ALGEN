@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-#SBATCH --job-name=eval
+#SBATCH --job-name=inversion
 #SBATCH --output=inversion_%j.out
 #SBATCH --error=inversion_%j.err
 #SBATCH --mem=50GB
