@@ -16,6 +16,8 @@ echo "working directory ${wd}"
 export HF_HOME="${wd}/.cache"
 export HF_DATASETS_CACHE="${wd}/.cache/datasets"
 export DATASET_CACHE_PATH="${wd}/.cache"
+export DISABLE_APEX=1
+
 
 
 SIF=/home/cs.aau.dk/ng78zb/pytorch_23.10-py3.sif
