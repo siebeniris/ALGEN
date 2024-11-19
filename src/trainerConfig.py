@@ -25,8 +25,8 @@ class TrainerConfig:
 
     # Alignment configuration
     adjust_weights_with_magnitude: bool = True
-    ot_reg: float = 0.1
-    ot_reg_m: float = 10.0
+    ot_reg: float = 0.05
+    ot_reg_m: float = 1.0 # less smoothing
 
     # Generation configuration
     decoding_strategy: str = "beam"
@@ -69,8 +69,8 @@ def get_ot_config():
     config = TrainerConfig()
     config.align_method = "ot"
     config.adjust_weights_with_magnitude = True
-    config.ot_reg = 0.1
-    config.ot_reg_m = 10.0
+    config.ot_reg = 0.05
+    config.ot_reg_m = 1.0
     return config
 
 

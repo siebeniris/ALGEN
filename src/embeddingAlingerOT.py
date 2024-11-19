@@ -7,7 +7,7 @@ class EmbeddingAlignerOT(nn.Module):
     def __init__(self,
                  s_hidden_size, g_hidden_size,
                  adjust_weights_with_magnitutde=True,
-                 ot_reg=0.1, ot_reg_m=10.0):
+                 ot_reg=0.1, ot_reg_m=10.):
         """
         Initialize the embedding aligner with linear transformation and optimal transport.
 
@@ -30,12 +30,26 @@ class EmbeddingAlignerOT(nn.Module):
         # Linear transformation layer
         # print("s hidden_size", self.s_hidden_size, "g hidden_size", self.g_hidden_size)
         # 512, 768.
-        self.linear_transform = nn.Linear(self.s_hidden_size, self.g_hidden_size,
-                                          bias=True)
+        # self.linear_transform = nn.Linear(self.s_hidden_size, self.g_hidden_size,
+        #                                   bias=True)
+
+        # more sophisticated neural network
+        self.linear_transform = nn.Sequential(
+            nn.Linear(s_hidden_size, g_hidden_size),
+            nn.LayerNorm(g_hidden_size),  # Add normalization
+            nn.ReLU(),
+            nn.Linear(g_hidden_size, g_hidden_size)
+        )
 
         # Initialize weights using Xavier initialization
-        nn.init.xavier_uniform_(self.linear_transform.weight)
-        nn.init.zeros_(self.linear_transform.bias)
+        for m in self.linear_transform.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+
+        # nn.init.xavier_uniform_(self.linear_transform.weight)
+        # nn.init.zeros_(self.linear_transform.bias)
 
     def get_adjusted_weights_with_magnitude(self, attention_mask, embeddings, scale_factor=1.0):
         """
@@ -164,13 +178,14 @@ class EmbeddingAlignerOT(nn.Module):
             cost_matrix = self.compute_weighted_euclidean_cost_matrix(source_emb_batch, target_emb_batch,
                                                                       source_weights_batch,
                                                                       target_weights_batch).detach().cpu().numpy()
+
             cost_matrix += 1e-12
             if are_balanced:
                 ot_plan = ot.sinkhorn(
                     source_weights_batch, target_weights_batch,
                     cost_matrix, reg=self.ot_reg,
-                    numItermax=100,
-                    stopThr=1e-8
+                    numItermax=1000,
+                    stopThr=1e-6
 
                 )
 
@@ -178,8 +193,8 @@ class EmbeddingAlignerOT(nn.Module):
                 ot_plan = ot.sinkhorn_unbalanced(
                     source_weights_np, target_weights_np,
                     cost_matrix, reg=self.ot_reg, reg_m=self.ot_reg_m,
-                    numItermax=100,
-                    stopThr=1e-8,
+                    numItermax=1000,
+                    stopThr=1e-6
                 )
             # convert transport plan to tensor, require grad.
             ot_plan = torch.tensor(
