@@ -2,6 +2,10 @@ import torch
 
 from transformers.modeling_outputs import BaseModelOutput
 from transformers import T5Tokenizer, T5Model, T5ForConditionalGeneration
+from torch.nn import LayerNorm
+import transformers.models.t5.modeling_t5 as t5_modeling
+t5_modeling.T5LayerNorm = LayerNorm
+
 
 from utils import get_device
 from alignment_models import LinearAligner, NeuralAligner, EmbeddingAlignerOrthogonal
