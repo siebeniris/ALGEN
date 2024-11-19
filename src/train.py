@@ -64,15 +64,17 @@ def train_with_config(config: TrainerConfig):
     trainer.train()
 
 
+def train_process(rank):
+    print(f"Process {rank} started")
+    print(f"CUDA Available? {torch.cuda.is_available()}")
+
+
 def main():
     # This ensures the spawn method is used when initializing workers in the DataLoader.
     import torch.multiprocessing as mp
     mp.set_start_method("spawn", force=True)
 
-    def test_cuda(rank):
-        print(f"Worker {rank}: CUDA Available? {torch.cuda.is_available()}")
-
-    mp.spawn(test_cuda, args=(), nprocs=4)
+    mp.spawn(train_process, args=(), nprocs=4)
 
     parser = argparse.ArgumentParser(description='Train Embedding Inverter')
     parser.add_argument('--config', type=str, choices=[
