@@ -181,17 +181,18 @@ class EmbeddingAlignerOT(nn.Module):
                     numItermax=100,
                     stopThr=1e-8,
                 )
-            # convert transport plan to tensor
+            # convert transport plan to tensor, require grad.
             ot_plan = torch.tensor(
                 ot_plan, device=transformed_s_embeddings.device,
-                dtype=transformed_s_embeddings.dtype
+                dtype=transformed_s_embeddings.dtype,
+                requires_grad=True
             )
 
             # In optimal_transport_align:
-            print(f"Source weights range: [{source_weights_np.min():.6f}, {source_weights_np.max():.6f}]")
-            print(f"Target weights range: [{target_weights_np.min():.6f}, {target_weights_np.max():.6f}]")
-            print(f"Cost matrix range: [{cost_matrix.min():.6f}, {cost_matrix.max():.6f}]")
-            print(f"OT plan range: [{ot_plan.min():.6f}, {ot_plan.max():.6f}]")
+            # print(f"Source weights range: [{source_weights_np.min():.6f}, {source_weights_np.max():.6f}]")
+            # print(f"Target weights range: [{target_weights_np.min():.6f}, {target_weights_np.max():.6f}]")
+            # print(f"Cost matrix range: [{cost_matrix.min():.6f}, {cost_matrix.max():.6f}]")
+            # print(f"OT plan range: [{ot_plan.min():.6f}, {ot_plan.max():.6f}]")
 
             aligned_embed = torch.mm(ot_plan, target_emb_batch)
             aligned_embeddings.append(aligned_embed)
@@ -214,6 +215,11 @@ class EmbeddingAlignerOT(nn.Module):
         """
         # Apply linear transformation
         # print(f"source_emb shape {source_embeddings.shape}, target_emb shape {target_embeddings.shape}")
+        if not self.linear_transform.weight.requires_grad or self.linear_transform.bias.requires_grad:
+            print("Linear transform needs requires_grad True")
+            self.linear_transform.weight.requires_grad = True
+            self.linear_transform.bias.requires_grad = True
+
         transformed_embeddings = self.linear_transform(source_embeddings)
 
         # Apply optimal transport alignment

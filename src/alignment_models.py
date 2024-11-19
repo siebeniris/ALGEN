@@ -64,6 +64,8 @@ class EmbeddingAlignerOrthogonal(nn.Module):
     def reset_parameters(self):
         """Initialize parameters using random orthogonal matrix"""
         nn.init.orthogonal_(self.W)
+        # normalize to prevent large values.
+        self.W.data /= torch.norm(self.W.data)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -90,8 +92,14 @@ class EmbeddingAlignerOrthogonal(nn.Module):
             except RuntimeError:
                 W = self.W
                 print("Warning: SVD failed, using non-orthogonal weights")
+                print(f"W shape: {self.W.shape}, W norm: {torch.norm(self.W)}")
         else:
             W = self.W
+
+        # orthogonal check.
+        orthogonality_check = torch.mm(W.T, W)
+        if not torch.allclose(orthogonality_check, torch.eye(W.shape[1], device=W.device), atol=1e-6):
+            print("Warning: Resulting W is not orthogonal")
 
         # Method 1: Reshape and batch process
         # Reshape to (batch_size * seq_len, hidden_dim)
