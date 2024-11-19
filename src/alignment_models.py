@@ -33,7 +33,7 @@ class NeuralAligner(nn.Module):
 
     def forward(self, x):
         original_shape = x.shape
-        print("original shape", original_shape)
+        # print("original shape", original_shape)
 
         output = self.network(x)
         return output

@@ -132,7 +132,7 @@ class EmbeddingInverter(torch.nn.Module):
             )
             assert embeddings.size(0) == decoder_input_ids.size(0), "Decoder input batch size mismatch!"
 
-            print(f"Decoder input IDs shape: {decoder_input_ids.shape}")
+            # print(f"Decoder input IDs shape: {decoder_input_ids.shape}")
             try:
                 if self.decoding_strategy == "beam":
                     # Generate output

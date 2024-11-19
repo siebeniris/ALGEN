@@ -294,12 +294,14 @@ class EmbeddingInverterTrainer:
         }
 
         # Save regular checkpoint
-        checkpoint_path = os.path.join(self.save_dir, f'checkpoint_epoch_{epoch}.pt')
+        checkpoint_dir = os.path.join(self.save_dir, f"{self.align_method}_epochs{self.num_epochs}" )
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        checkpoint_path = os.path.join(checkpoint_dir,  f'checkpoint_epoch_{epoch}.pt')
         torch.save(checkpoint, checkpoint_path)
 
         # Save best model separately
         if is_best:
-            best_model_path = os.path.join(self.save_dir,
+            best_model_path = os.path.join(checkpoint_dir,
                                            f'best_model_{self.align_method}.pt')
             torch.save(checkpoint, best_model_path)
             print(f"Saved best model to {best_model_path}")
