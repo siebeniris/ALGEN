@@ -376,14 +376,15 @@ class EmbeddingInverterTrainer:
             shuffle=True,
             collate_fn=custom_collate_fn,
             num_workers=self.num_workers,  # if you're using multiple workers
-            pin_memory=torch.cuda.is_available(),  # if you're using GPU
+            pin_memory=False,  # if you're using GPU
             drop_last=False,
         )
+
         eval_dataloader = DataLoader(
             eval_dataset,
             batch_size=self.batch_size,
             collate_fn=custom_collate_fn,
-            pin_memory=torch.cuda.is_available(),  # if you're using GPU
+            pin_memory=False,  # if you're using GPU
         )
 
         for epoch in range(self.start_epoch, self.num_epochs):
