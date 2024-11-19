@@ -67,7 +67,7 @@ def train_with_config(config: TrainerConfig):
 def main():
     parser = argparse.ArgumentParser(description='Train Embedding Inverter')
     parser.add_argument('--config', type=str, choices=[
-        'default', 'ot', 'neural', 'orthogonal', 'fine-tuning'
+        'default', 'ot', 'neural', 'orthogonal', 'linear'
     ], default='default', help='Configuration preset to use')
     parser.add_argument('--config_path', type=str, help='Path to custom YAML config file')
 
