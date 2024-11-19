@@ -7,13 +7,13 @@ class TrainerConfig:
     # Model configuration
     model_G_name: str = "t5-base"
     model_S_name: str = "t5-small"
-    max_length: int = 128
+    max_length: int = 64
 
     # Training configuration
     align_method: str = "linear"
     learning_rate: float = 1e-4
     batch_size: int = 64
-    num_epochs: int = 100
+    num_epochs: int = 300
 
     # Checkpoint configuration
     save_dir: str = "checkpoints"
