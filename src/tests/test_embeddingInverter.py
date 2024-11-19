@@ -1,6 +1,5 @@
 import unittest
-import torch
-from InversionModel import EmbeddingInverter
+from ..InversionModel import EmbeddingInverter
 
 
 class TestEmbeddingInverter(unittest.TestCase):

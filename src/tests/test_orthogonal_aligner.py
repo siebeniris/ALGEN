@@ -1,6 +1,4 @@
 import torch
-import torch.nn as nn
-import numpy as np
 
 
 def create_test_orthogonal_matrix(input_dim: int, output_dim: int) -> torch.Tensor:

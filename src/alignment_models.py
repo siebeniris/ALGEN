@@ -1,18 +1,7 @@
 import numpy as np
-from scipy.linalg import orthogonal_procrustes
-from gensim.models import KeyedVectors
 from sklearn.metrics.pairwise import cosine_similarity
-import re
-import Levenshtein
-from transformers import T5Tokenizer, T5ForConditionalGeneration
-import torch.nn.functional as F
-
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from sentence_transformers import SentenceTransformer
-from tqdm.autonotebook import tqdm, trange
-from transformers.modeling_outputs import BaseModelOutput
 
 from utils import get_weights_from_attention_mask
 import ot

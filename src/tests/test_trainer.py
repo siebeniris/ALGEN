@@ -1,11 +1,8 @@
 import unittest
 import os
-import shutil
-import yaml
-from trainerConfig import TrainerConfig, get_default_config, get_linear_config, get_neural_config, \
-    get_orthogonal_config, get_ot_config
-from train import save_config, load_config_from_yaml, train_with_config
-from InversionTrainer import EmbeddingInverterTrainer
+from ..trainerConfig import TrainerConfig, get_default_config, get_linear_config, get_neural_config, \
+     get_ot_config
+from ..InversionTrainer import EmbeddingInverterTrainer
 import torch
 
 

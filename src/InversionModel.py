@@ -3,7 +3,7 @@ import torch
 from transformers.modeling_outputs import BaseModelOutput
 from transformers import T5Tokenizer, T5Model, T5ForConditionalGeneration
 
-from utils import get_weights_from_attention_mask, get_device
+from utils import get_device
 from alignment_models import LinearAligner, NeuralAligner, EmbeddingAlignerOrthogonal
 from embeddingAlingerOT import EmbeddingAlignerOT
 ###################################################################################################
