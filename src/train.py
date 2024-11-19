@@ -10,7 +10,7 @@ from trainerConfig import (
 from InversionTrainer import EmbeddingInverterTrainer
 import yaml
 import os
-
+import torch
 
 def save_config(config: TrainerConfig, save_dir: str):
     """Save configuration to YAML file"""
@@ -65,6 +65,15 @@ def train_with_config(config: TrainerConfig):
 
 
 def main():
+    # This ensures the spawn method is used when initializing workers in the DataLoader.
+    import torch.multiprocessing as mp
+    mp.set_start_method("spawn", force=True)
+
+    def test_cuda(rank):
+        print(f"Worker {rank}: CUDA Available? {torch.cuda.is_available()}")
+
+    mp.spawn(test_cuda, args=(), nprocs=4)
+
     parser = argparse.ArgumentParser(description='Train Embedding Inverter')
     parser.add_argument('--config', type=str, choices=[
         'default', 'ot', 'neural', 'orthogonal', 'linear'

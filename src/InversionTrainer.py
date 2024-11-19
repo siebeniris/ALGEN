@@ -73,7 +73,7 @@ class EmbeddingInverterTrainer:
             ot_reg=ot_reg
         )
 
-        self.num_workers = min(int(os.cpu_count()/2),10)
+        self.num_workers = 2
 
         # Load from checkpoint if provided
         self.start_epoch = 0
@@ -377,7 +377,6 @@ class EmbeddingInverterTrainer:
             collate_fn=custom_collate_fn,
             num_workers=self.num_workers,  # if you're using multiple workers
             pin_memory=torch.cuda.is_available(),  # if you're using GPU
-            persistent_workers= self.num_workers > 0,
             drop_last=False,
         )
         eval_dataloader = DataLoader(
