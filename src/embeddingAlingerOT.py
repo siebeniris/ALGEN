@@ -34,12 +34,10 @@ class EmbeddingAlignerOT(nn.Module):
         #                                   bias=True)
 
         # more sophisticated neural network
-        self.linear_transform = nn.Sequential(
-            nn.Linear(s_hidden_size, g_hidden_size),
-            nn.LayerNorm(g_hidden_size),  # Add normalization
-            nn.ReLU(),
-            nn.Linear(g_hidden_size, g_hidden_size)
-        )
+        self.linear1 = nn.Linear(s_hidden_size, g_hidden_size)
+        self.relu = nn.ReLU()
+        self.linear2 = nn.Linear(g_hidden_size, g_hidden_size)
+
 
         # Initialize weights using Xavier initialization
         for m in self.linear_transform.modules():
@@ -50,6 +48,20 @@ class EmbeddingAlignerOT(nn.Module):
 
         # nn.init.xavier_uniform_(self.linear_transform.weight)
         # nn.init.zeros_(self.linear_transform.bias)
+
+    def transform_embeddings(self, x):
+        """Apply transformation layers"""
+        x = self.linear1(x)
+        x = self.relu(x)
+        x = self.linear2(x)
+        return x
+
+    def check_gradients(self):
+        """Check if gradients are enabled for all parameters"""
+        for name, param in self.named_parameters():
+            if not param.requires_grad:
+                print(f"Enabling gradients for {name}")
+                param.requires_grad = True
 
     def get_adjusted_weights_with_magnitude(self, attention_mask, embeddings, scale_factor=1.0):
         """
@@ -230,12 +242,8 @@ class EmbeddingAlignerOT(nn.Module):
         """
         # Apply linear transformation
         # print(f"source_emb shape {source_embeddings.shape}, target_emb shape {target_embeddings.shape}")
-        if not self.linear_transform.weight.requires_grad or self.linear_transform.bias.requires_grad:
-            print("Linear transform needs requires_grad True")
-            self.linear_transform.weight.requires_grad = True
-            self.linear_transform.bias.requires_grad = True
-
-        transformed_embeddings = self.linear_transform(source_embeddings)
+        self.check_gradients()
+        transformed_embeddings = self.transform_embeddings(source_embeddings)
 
         # Apply optimal transport alignment
         aligned_embeddings = self.optimal_transport_align(
