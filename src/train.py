@@ -15,7 +15,7 @@ import os
 def save_config(config: TrainerConfig, save_dir: str):
     """Save configuration to YAML file"""
     os.makedirs(save_dir, exist_ok=True)
-    config_path = os.path.join(save_dir, 'config.yaml')
+    config_path = os.path.join(save_dir, f'config_{config.align_method}_epoch{config.num_epochs}.yaml')
 
     with open(config_path, 'w') as f:
         yaml.dump(config, f)

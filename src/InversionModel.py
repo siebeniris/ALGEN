@@ -158,8 +158,8 @@ class EmbeddingInverter(torch.nn.Module):
                     )
 
                 # Decode generated tokens
-                print(f"Generated IDs: {generated}")
-                print(f"Generated shape: {generated.shape}")
+                # print(f"Generated IDs: {generated}")
+                # print(f"Generated shape: {generated.shape}")
 
                 decoded_text = self.tokenizer_G.batch_decode(
                     generated, skip_special_tokens=True, clean_up_tokenization_spaces=True
