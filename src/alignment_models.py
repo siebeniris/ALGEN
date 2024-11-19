@@ -31,6 +31,9 @@ class LinearAligner(nn.Module):
 class NeuralAligner(nn.Module):
     def __init__(self, source_dim, target_dim):
         super().__init__()
+        self.source_dim = source_dim
+        self.target_dim = target_dim
+        print(f"Initializing NeuralAligner with source_dim={source_dim}, target_dim={target_dim}")
 
         hidden_dim = source_dim
         self.network = nn.Sequential(
@@ -40,7 +43,11 @@ class NeuralAligner(nn.Module):
         )
 
     def forward(self, x):
-        return self.network(x)
+        original_shape = x.shape
+        print("original shape", original_shape)
+
+        output = self.network(x)
+        return output
 
 
 class EmbeddingAlignerOrthogonal(nn.Module):
@@ -250,3 +257,25 @@ def procrustes_alignment(source_embeddings, target_embeddings):
     aligned_embeddings = np.dot(source_centered, W)  # [N, D_G]
 
     return aligned_embeddings, W
+
+
+if __name__ == '__main__':
+    # Example dimensions
+    source_dim = 768  # Your actual source embedding dimension
+    target_dim = 512  # Your actual target embedding dimension
+
+    # Create model
+    model = NeuralAligner(source_dim, target_dim)
+
+    # Test with sample input
+    batch_size = 2
+    seq_len = 10
+    x = torch.randn(batch_size, seq_len, source_dim)
+
+    # Forward pass
+    try:
+        output = model(x)
+        print(f"Input shape: {x.shape}")
+        print(f"Output shape: {output.shape}")
+    except Exception as e:
+        print(f"Error: {e}")

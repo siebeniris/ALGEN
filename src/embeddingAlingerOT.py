@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
 import ot
 
 
@@ -30,6 +28,8 @@ class EmbeddingAlignerOT(nn.Module):
         self.ot_reg_m = ot_reg_m
 
         # Linear transformation layer
+        # print("s hidden_size", self.s_hidden_size, "g hidden_size", self.g_hidden_size)
+        # 512, 768.
         self.linear_transform = nn.Linear(self.s_hidden_size, self.g_hidden_size,
                                           bias=True)
 
@@ -213,6 +213,7 @@ class EmbeddingAlignerOT(nn.Module):
             torch.Tensor: Aligned embeddings in target space
         """
         # Apply linear transformation
+        # print(f"source_emb shape {source_embeddings.shape}, target_emb shape {target_embeddings.shape}")
         transformed_embeddings = self.linear_transform(source_embeddings)
 
         # Apply optimal transport alignment

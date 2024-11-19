@@ -13,7 +13,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
 
 from InversionModel import EmbeddingInverter
-from create_dataset import EmbeddingDataset
+from create_dataset import EmbeddingDataset, custom_collate_fn
 from data_helper import load_data
 
 
@@ -38,7 +38,7 @@ class EmbeddingInverterTrainer:
             dataset_name: str = "flores",
             language_script: str = "eng_Latn",
             train_samples: int = 1000,
-            eval_samples: int = 200
+            eval_samples: int = 200,
     ):
         self.align_method = align_method
         self.learning_rate = learning_rate
@@ -73,6 +73,8 @@ class EmbeddingInverterTrainer:
             ot_reg=ot_reg
         )
 
+        self.num_workers = min(int(os.cpu_count()/2),10)
+
         # Load from checkpoint if provided
         self.start_epoch = 0
         self.best_eval_loss = float('inf')
@@ -92,7 +94,7 @@ class EmbeddingInverterTrainer:
         # todo : put all the arguments into config.
         if use_wandb:
             wandb.init(
-                project="embedding-inverter",
+                project=f"embedding-inverter-{self.align_method}-{self.num_epochs}",
                 config={
                     "model_g": model_G_name,
                     "model_s": model_S_name,
@@ -194,6 +196,7 @@ class EmbeddingInverterTrainer:
     def train_step(self, batch: Dict[str, torch.Tensor]) -> Dict[str, float]:
         """Single training step"""
         self.optimizer.zero_grad()
+        # print(batch)
 
         # Forward pass
 
@@ -365,10 +368,24 @@ class EmbeddingInverterTrainer:
 
         train_dataset = EmbeddingDataset(train_texts, self.model)
         eval_dataset = EmbeddingDataset(eval_texts, self.model)
-
+        print(f"num workers for dataloader {self.num_workers}")
         # Create dataloaders
-        train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
-        eval_dataloader = DataLoader(eval_dataset, batch_size=self.batch_size)
+        train_dataloader = DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=custom_collate_fn,
+            num_workers=self.num_workers,  # if you're using multiple workers
+            pin_memory=torch.cuda.is_available(),  # if you're using GPU
+            persistent_workers= self.num_workers > 0,
+            drop_last=False,
+        )
+        eval_dataloader = DataLoader(
+            eval_dataset,
+            batch_size=self.batch_size,
+            collate_fn=custom_collate_fn,
+            pin_memory=torch.cuda.is_available(),  # if you're using GPU
+        )
 
         for epoch in range(self.start_epoch, self.num_epochs):
             self.model.train()
@@ -386,8 +403,9 @@ class EmbeddingInverterTrainer:
             # Evaluation
             eval_metrics = self.evaluate(eval_dataloader)
 
-            # Log metrics
+            # Log metrics including loss
             metrics = {
+                # train_losses
                 **{k: np.mean(v) for k, v in epoch_metrics.items()},
                 **eval_metrics
             }

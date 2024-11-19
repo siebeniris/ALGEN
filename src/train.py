@@ -4,10 +4,10 @@ from trainerConfig import (
     get_default_config,
     get_ot_config,
     get_neural_config,
-    get_orthogonal_config
+    get_orthogonal_config,
+    get_linear_config
 )
 from InversionTrainer import EmbeddingInverterTrainer
-from data_helper import load_data
 import yaml
 import os
 
@@ -84,6 +84,7 @@ def main():
             'ot': get_ot_config,
             'neural': get_neural_config,
             'orthogonal': get_orthogonal_config,
+            'linear': get_linear_config,
         }
         config = configs[args.config]()
         print(f"Using {args.config} configuration")

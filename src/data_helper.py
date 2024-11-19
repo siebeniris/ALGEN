@@ -118,4 +118,3 @@ def load_data(dataset_name, language, nr_samples=500):
         ]
         datalist = [x["sentence"] for x in lang_and_sentences]
         return datalist
-
