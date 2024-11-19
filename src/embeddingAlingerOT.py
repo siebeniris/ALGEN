@@ -40,11 +40,10 @@ class EmbeddingAlignerOT(nn.Module):
 
 
         # Initialize weights using Xavier initialization
-        for m in self.linear_transform.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    nn.init.zeros_(m.bias)
+        nn.init.xavier_uniform_(self.linear1.weight)
+        nn.init.zeros_(self.linear1.bias)
+        nn.init.xavier_uniform_(self.linear2.weight)
+        nn.init.zeros_(self.linear2.bias)
 
         # nn.init.xavier_uniform_(self.linear_transform.weight)
         # nn.init.zeros_(self.linear_transform.bias)
