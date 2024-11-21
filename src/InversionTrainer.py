@@ -199,8 +199,7 @@ class EmbeddingInverterTrainer:
         # cosine loss
         cos_loss = self.cos_loss(
             # [batch_size*seq_len, hidden_dim]
-            aligned_embeddings_reshaped, target_embeddings_reshaped, target,
-            reduction="mean"
+            aligned_embeddings_reshaped, target_embeddings_reshaped, target
         )
 
         # Compute MSE loss
