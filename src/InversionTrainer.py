@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
-from torch.nn import MSELoss, CosineSimilarity
+from torch.nn import MSELoss, CosineEmbeddingLoss
 import numpy as np
 from tqdm import tqdm
 import wandb
@@ -31,9 +31,6 @@ class EmbeddingInverterTrainer:
             batch_size: int = 16,
             num_epochs: int = 100,
             max_length: int = 128,
-            adjust_weights_with_magnitude: bool = True,
-            ot_reg: float = 0.1,
-            ot_reg_m: float = 10.0,
             decoding_strategy: str = "beam",
             dataset_name: str = "flores",
             language_script: str = "eng_Latn",
@@ -49,9 +46,6 @@ class EmbeddingInverterTrainer:
         self.model_S_name = model_S_name
         self.save_dir = save_dir
         self.use_wandb = use_wandb
-        self.adjust_weights_with_magnitude = adjust_weights_with_magnitude
-        self.ot_reg = ot_reg
-        self.ot_reg_m = ot_reg_m
         self.decoding_strategy = decoding_strategy
 
         self.dataset_name = dataset_name
@@ -69,8 +63,6 @@ class EmbeddingInverterTrainer:
             max_length=max_length,
             align_method=align_method,
             decoding_strategy=decoding_strategy,
-            ot_reg_m=ot_reg_m,
-            ot_reg=ot_reg
         )
 
         self.num_workers = 2
@@ -88,7 +80,7 @@ class EmbeddingInverterTrainer:
 
         # Initialize losses
         self.mse_loss = MSELoss()
-        self.cos_sim = CosineSimilarity(dim=-1)
+        self.cos_loss = CosineEmbeddingLoss()
         self.rouge_scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
         # todo : put all the arguments into config.
@@ -107,9 +99,6 @@ class EmbeddingInverterTrainer:
                     'model_S_name': self.model_S_name,
                     "save_dir": self.save_dir,
                     "checkpoint_path": self.checkpoint_path,
-                    'adjust_weights_with_magnitude': self.adjust_weights_with_magnitude,
-                    'ot_reg': self.ot_reg,
-                    'ot_reg_m': self.ot_reg_m,
                     'decoding_strategy': self.decoding_strategy
                 }
             )
@@ -182,7 +171,7 @@ class EmbeddingInverterTrainer:
 
         # Compute cosine similarity
         # [0= identical, 2=opposite]
-        cos_dist = np.mean([1 - cosine_similarity(a.reshape(1, -1), t.reshape(1, -1))[0][0]
+        cos_dist = np.mean([ - cosine_similarity(a.reshape(1, -1), t.reshape(1, -1))[0][0]
                             for a, t in zip(aligned_np, target_np)])
 
         # Compute MSE
@@ -202,13 +191,17 @@ class EmbeddingInverterTrainer:
 
         aligned_embeddings = self.model(batch)
 
-        cossim = self.cos_sim(
-            aligned_embeddings.view(-1, aligned_embeddings.size(-1)),
-            batch["emb_g"].view(-1, batch["emb_g"].size(-1))
-        )
+        aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
+        target_embeddings_reshaped = batch["emb_g"].view(-1, batch["emb_g"].size(-1))
+        batch_seq_len = target_embeddings_reshaped.shape[0]
+        target = torch.ones(batch_seq_len)
 
-        # Convert similarity to loss (0 is best, 2 is worst)
-        cos_loss = torch.mean(1 - cossim)  # Alternative to negation
+        # cosine loss
+        cos_loss = self.cos_loss(
+            # [batch_size*seq_len, hidden_dim]
+            aligned_embeddings_reshaped, target_embeddings_reshaped, target,
+            reduction="mean"
+        )
 
         # Compute MSE loss
         mse_loss = self.mse_loss(aligned_embeddings, batch["emb_g"])
@@ -220,7 +213,6 @@ class EmbeddingInverterTrainer:
         # Backward pass
         loss.backward()
         self.optimizer.step()
-
         return {
             "train_loss": loss.item(),
             "train_mse_loss": mse_loss.item(),
@@ -286,9 +278,6 @@ class EmbeddingInverterTrainer:
                 "save_dir": self.save_dir,
                 "checkpoint_path": self.checkpoint_path,
                 "use_wandb": self.use_wandb,
-                'adjust_weights_with_magnitude': self.adjust_weights_with_magnitude,
-                'ot_reg': self.ot_reg,
-                'ot_reg_m': self.ot_reg_m,
                 'decoding_strategy': self.decoding_strategy
             }
         }
@@ -365,8 +354,11 @@ class EmbeddingInverterTrainer:
         """Main training loop"""
         # Create datasets
 
-        train_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)
-        eval_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.eval_samples)
+        # TODO: change this , DATA IS OVERLAPING.
+        all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)
+        split_index= int(len(all_texts))*0.8
+        train_texts = all_texts[:split_index]
+        eval_texts = all_texts[split_index:]
 
         train_dataset = EmbeddingDataset(train_texts, self.model)
         eval_dataset = EmbeddingDataset(eval_texts, self.model)
@@ -435,7 +427,7 @@ def main():
         align_method="linear",
         learning_rate=1e-4,
         batch_size=128,
-        num_epochs=100
+        num_epochs=300
     )
 
     # Train model

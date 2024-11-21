@@ -68,9 +68,7 @@ def get_orthogonal_config():
 def get_ot_config():
     config = TrainerConfig()
     config.align_method = "ot"
-    config.adjust_weights_with_magnitude = True
-    config.ot_reg = 0.05
-    config.ot_reg_m = 1.0
+    config.batch_size =1
     return config
 
 

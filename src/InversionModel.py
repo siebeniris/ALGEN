@@ -2,14 +2,18 @@ import torch
 
 from transformers.modeling_outputs import BaseModelOutput
 from transformers import T5Tokenizer, T5Model, T5ForConditionalGeneration
+import torch.nn as nn
 from torch.nn import LayerNorm
-import transformers.models.t5.modeling_t5 as t5_modeling
-t5_modeling.T5LayerNorm = LayerNorm
 
+import transformers.models.t5.modeling_t5 as t5_modeling
+
+t5_modeling.T5LayerNorm = LayerNorm
 
 from utils import get_device
 from alignment_models import LinearAligner, NeuralAligner, EmbeddingAlignerOrthogonal
-from embeddingAlingerOT import EmbeddingAlignerOT
+from embeddingAlingerOT import AlignerOT
+
+
 ###################################################################################################
 ### limitation of this inversionmodel: only works on the embeddings with the same tokenizers.
 
@@ -42,10 +46,9 @@ class EmbeddingInverter(torch.nn.Module):
         self.hidden_size_S = self.encoder_S.config.hidden_size  # 512,
 
         self.decoding_strategy = decoding_strategy
-        self.adjust_weights_with_magnitutde = adjust_weights_with_magnitutde
-        self.ot_reg = ot_reg
-        self.ot_reg_m = ot_reg_m
 
+        # TODO : EXPERIEMENT ON DIFFERENT LAYERS.
+        self.layer_num = 0
         self.align_method = align_method
 
         # Define aligner
@@ -57,10 +60,7 @@ class EmbeddingInverter(torch.nn.Module):
         elif self.align_method == "orthogonal":
             self.aligner = EmbeddingAlignerOrthogonal(self.hidden_size_S, self.hidden_size_G, orthogonal=True)
         elif self.align_method == "ot":
-            self.aligner = EmbeddingAlignerOT(self.hidden_size_S, self.hidden_size_G,
-                                              self.adjust_weights_with_magnitutde,
-                                              self.ot_reg, self.ot_reg_m
-                                              )
+            self.aligner = AlignerOT(self.hidden_size_S, self.hidden_size_G, self.device)
         else:
             raise ValueError(f"Unkown Align Method: {align_method}")
 
@@ -69,6 +69,18 @@ class EmbeddingInverter(torch.nn.Module):
         self.encoder_S = self.encoder_S.to(self.device)
         self.aligner = self.aligner.to(self.device)
         self.freeze_models()
+
+        self.use_ff_dropout = False
+        self.num_repeat_tokens = 16
+
+        self.embedding_transform_g_g = nn.Sequential(
+            nn.Linear(self.hidden_size_G, self.hidden_size_G),
+            nn.Dropout(
+                self.model_G.config.dropout_rate if self.use_ff_dropout else 0.0
+            ),
+            nn.GELU(),
+            nn.Linear(self.hidden_size_G, self.hidden_size_G * self.num_repeat_tokens),
+        )
 
     def freeze_models(self):
         """Freeze model parameters to prevent gradient updates."""
@@ -107,6 +119,10 @@ class EmbeddingInverter(torch.nn.Module):
 
     def decode_embeddings(self, embeddings, attention_mask=None):
         """Decode embeddings back to text."""
+
+        if self.align_method == "ot":
+            seq_len, hidden_size = embeddings.shape
+            embeddings = embeddings.view(1, seq_len, hidden_size)
         with torch.no_grad():
             batch_size, seq_length, hidden_size = embeddings.size()
             print(f"embeddings mean: {embeddings.mean().item()}, std: {embeddings.std().item()}")
@@ -177,6 +193,42 @@ class EmbeddingInverter(torch.nn.Module):
                 decoded_text = ["Error during generation"] * batch_size
         return decoded_text
 
+    def transform_and_concatenate(self, embedding_g, aligned_s, attention_mask_s):
+        batch_size, seq_len, hidden_dim_g = embedding_g.shape
+        # (b,s,g)
+        diff_embedding = embedding_g - aligned_s
+        diff_embedding = diff_embedding.reshape((batch_size, self.num_repeat_tokens,
+                                                 self.hidden_size_G))
+        # (b,s,g)
+        embedding_g = self.embedding_transform_g_g(embedding_g)
+        embedding_g = embedding_g.reshape((batch_size, self.num_repeat_tokens,
+                                           self.hidden_size_G))
+
+        aligned_s = self.embedding_transform_g_g(aligned_s)
+        aligned_s = aligned_s.reshape((batch_size, self.num_repeat_tokens,
+                                       self.hidden_size_G))
+
+        ones = torch.ones(
+            (batch_size, 1), dtype=torch.long, device=aligned_s.device
+        )
+        sep_token = ones * self.model_G.config.eos_token_id
+        sep_token = self.encoder_G.embed_tokens(sep_token)
+
+        concat_embeds = torch.cat(
+            (
+                sep_token,
+                embedding_g,
+                sep_token,
+                aligned_s,
+                sep_token,
+                diff_embedding
+            ),
+            dim=1
+        )
+        attention_mask = torch.cat((ones.repeat(1, 3 + 3 * self.num_repeat_tokens), attention_mask_s),
+                                   dim=1, )
+        return concat_embeds, attention_mask
+
     def forward(self, x):
         """Forward pass for text-to-text inversion."""
         # aligning: linear and neural.
@@ -187,7 +239,6 @@ class EmbeddingInverter(torch.nn.Module):
         embedding_g = x["emb_g"]
         g_attention_mask = x["attention_mask_g"]
         # print(f"emb_s {embedding_s.shape}, emb_g {embedding_g.shape}")
-
 
         assert embedding_s.shape[1] == embedding_g.shape[1]  # assert they have the same tokenizer
 
@@ -201,17 +252,19 @@ class EmbeddingInverter(torch.nn.Module):
             aligned_embeddings = self.aligner(embedding_s)
 
         elif self.align_method == "ot":
-            aligned_embeddings = self.aligner(embedding_s, embedding_g, s_attention_mask, g_attention_mask)
+            aligned_embeddings = self.aligner(embedding_s[0], embedding_g[0])
 
         else:
             raise ValueError(f"Unkown Align Method: {self.align_method}")
+
+        # # TODO: HOW TO DEAL WITH THIS
+        # input_embeds , attention_mask = self.transform_and_concatenate(embedding_g, aligned_embeddings, s_attention_mask)
 
         # print(aligned_embeddings.shape, attention_mask.shape, aligned_embeddings.device)
         # we can use attention_mask from embedding_s only when the seq_len is not changed for embedding_s
         # only when they have the same kind of tokenizer.
         # return aligned_embeddings, self.decode_embeddings(aligned_embeddings, s_attention_mask)
         return aligned_embeddings
-
 
     def sanity_check_random_embedding(self):
         """Check if T5 can decode random embeddings."""

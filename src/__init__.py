@@ -8,7 +8,7 @@ from .alignment_models import (LinearAligner,
                                procrustes_alignment
                                )
 from .InversionTrainer import EmbeddingInverterTrainer
-from .embeddingAlingerOT import EmbeddingAlignerOT
+from .embeddingAlingerOT import AlignerOT
 from .trainerConfig import (TrainerConfig,
                             get_default_config,
                             get_ot_config,
