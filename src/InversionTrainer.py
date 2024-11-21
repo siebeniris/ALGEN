@@ -290,7 +290,7 @@ class EmbeddingInverterTrainer:
         }
 
         # Save regular checkpoint
-        self.checkpoint_dir = os.path.join(self.save_dir, f"{self.align_method}_epochs{self.num_epochs}" )
+        self.checkpoint_dir = os.path.join(self.save_dir, f"{self.align_method}_epochs_{self.num_epochs}_samples_{self.train_samples}" )
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         checkpoint_path = os.path.join(self.checkpoint_dir,  f'checkpoint_epoch_{epoch}.pt')
         torch.save(checkpoint, checkpoint_path)
