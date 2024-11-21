@@ -8,14 +8,14 @@ class AlignerOT(nn.Module):
         super(AlignerOT, self).__init__()
         # Load pre-trained embeddings
         # Dimensions
+        self.device= device
         self.source_dimension = source_dimension
         self.target_dimension = target_dimension
         print(f"initializing source {self.source_dimension} and target {self.target_dimension}")
 
         # Transformation matrix for aligning source emebddings to target emebddings
-        self.delta_ot = nn.Parameter(torch.Tensor(self.target_dimension, self.target_dimension), requires_grad=True)
+        self.delta_ot = nn.Parameter(torch.FloatTensor(self.target_dimension, self.target_dimension), requires_grad=True)
         self.mats_align = nn.Linear(self.source_dimension, self.target_dimension)
-        self.delta_ot = self.delta_ot.to(device)
         self.mats_align = self.mats_align.to(device)
         nn.init.xavier_uniform_(self.delta_ot)
 
@@ -32,7 +32,7 @@ class AlignerOT(nn.Module):
         source_dim = source_embeddings.shape[-1]
         target_dim = target_embeddings.shape[-1]
 
-        # Uniform distributions for OT
+        # Uniform distributions for OT, each element has the same probabilities
         source_dis = torch.ones_like(source_embeddings[0, :]) / source_embeddings.shape[-1]
         target_dis = torch.ones_like(target_embeddings[0, :]) / target_embeddings.shape[-1]
 
@@ -42,6 +42,8 @@ class AlignerOT(nn.Module):
         matrix_temp = torch.zeros((number, source_dim, target_dim), device=device)
 
         # Compute Sinkhorn distance over multiple samples
+        # sinkhorn: solve OT efficiently, use entropy regularization to make OT more stable and scalable.
+        # min_T <T,C> - \epsilon H(T) (entropy of the transportation plan)
         with torch.no_grad():
             for i in range(number):
                 cost = ((source_embeddings[i, :].unsqueeze(0) - target_embeddings[i, :].unsqueeze(1)) ** 2) * self.scale
@@ -54,13 +56,13 @@ class AlignerOT(nn.Module):
         """
         Aligns ling_vec to img_vec using Optimal Transport.
         """
-        device = self.delta_ot.device
+        device = self.device
 
         source_vec = torch.tensor(X).to(torch.float32)  # source embeddings
         target_vec = torch.tensor(Y).to(torch.float32)  # target embeddings
 
         # align source to target vectors
-        source_vec = self.mats_align(source_vec) # (seq_length, target_dim)
+        source_vec = self.mats_align(source_vec)  # (seq_length, target_dim)
 
         # Compute OT matrix to align ling_vec to img_vec
         ot_matrix = self.cal_ot(source_vec.to(device), target_vec.to(device), delta_ot=self.delta_ot)
