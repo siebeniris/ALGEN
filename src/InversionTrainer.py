@@ -165,6 +165,14 @@ class EmbeddingInverterTrainer:
         aligned_np = aligned_embeddings.detach().cpu().numpy()
         target_np = target_embeddings.detach().cpu().numpy()
 
+        print(aligned_np.shape, target_np.shape)
+
+        # Fix target shape if it's unexpectedly large
+        if target_np.shape[1] > aligned_np.shape[1]:
+            print("Reshaping target embeddings...")
+            target_np = target_np.reshape(aligned_np.shape)  # Or use mean reduction
+
+
         if attention_mask is not None:
             mask_np = attention_mask.detach().cpu().numpy()
             # Only consider non-padded tokens
@@ -173,10 +181,8 @@ class EmbeddingInverterTrainer:
 
         # Compute cosine similarity
         # [0= identical, 2=opposite]
-        if len(aligned_np) == 2:
-            cos_sim = np.mean(cosine_similarity(aligned_np, target_np))
-        else:
-            cos_sim = np.mean([cosine_similarity(a.reshape(1, -1), t.reshape(1, -1))[0][0]
+
+        cos_sim = np.mean([cosine_similarity(a.reshape(1, -1), t.reshape(1, -1))[0][0]
                             for a, t in zip(aligned_np, target_np)])
 
         # Compute MSE
@@ -360,7 +366,7 @@ class EmbeddingInverterTrainer:
         # Create datasets
 
         # TODO: change this , DATA IS OVERLAPING.
-        all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)
+        all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)[:10]
         split_index = int(len(all_texts)*0.8)
         train_texts = all_texts[:split_index]
         eval_texts = all_texts[split_index:]
