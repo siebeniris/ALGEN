@@ -190,13 +190,13 @@ class EmbeddingInverterTrainer:
         # print(batch)
 
         # Forward pass
-        batch = batch.to(self.device)
+        # batch = batch.to(self.device)
         aligned_embeddings = self.model(batch)
 
         aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
         target_embeddings_reshaped = batch["emb_g"].view(-1, batch["emb_g"].size(-1))
         batch_seq_len = target_embeddings_reshaped.shape[0]
-        target = torch.ones(batch_seq_len)
+        target = torch.ones(batch_seq_len).to(self.device)
 
         # cosine loss
         cos_loss = self.cos_loss(
@@ -230,7 +230,6 @@ class EmbeddingInverterTrainer:
         with torch.no_grad():
             for batch in tqdm(eval_dataloader, desc="Evaluating"):
                 # Get aligned embeddings and decoded text
-                batch = batch.to(self.device)
                 aligned_embeddings = self.model(batch)
                 # might need to change later when tokenizers aren't the same.
                 decoded_texts = self.model.decode_embeddings(aligned_embeddings, batch["attention_mask_s"])
@@ -241,7 +240,7 @@ class EmbeddingInverterTrainer:
                 )
 
                 # Store texts for later metric computation
-                all_texts.extend(batch["text"].detach().cpu().numpy())
+                all_texts.extend(batch["text"])
                 all_decoded_texts.extend(decoded_texts)
 
                 # Store embedding metrics
@@ -358,7 +357,7 @@ class EmbeddingInverterTrainer:
 
         # TODO: change this , DATA IS OVERLAPING.
         all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)
-        split_index= int(len(all_texts)*0.8)
+        split_index = int(len(all_texts)*0.8)
         train_texts = all_texts[:split_index]
         eval_texts = all_texts[split_index:]
 
@@ -392,7 +391,6 @@ class EmbeddingInverterTrainer:
             for batch in pbar:
 
                 step_metrics = self.train_step(batch)
-
 
                 for k, v in step_metrics.items():
                     epoch_metrics[k].append(v)
