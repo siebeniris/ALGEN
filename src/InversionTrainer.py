@@ -167,12 +167,6 @@ class EmbeddingInverterTrainer:
 
         print(aligned_np.shape, target_np.shape)
 
-        # Fix target shape if it's unexpectedly large
-        if target_np.shape[1] > aligned_np.shape[1]:
-            print("Reshaping target embeddings...")
-            target_np = target_np.reshape(aligned_np.shape)  # Or use mean reduction
-
-
         if attention_mask is not None:
             mask_np = attention_mask.detach().cpu().numpy()
             # Only consider non-padded tokens
@@ -245,6 +239,8 @@ class EmbeddingInverterTrainer:
 
                 print("aligned embedding and original: ",aligned_embeddings.shape, batch["emb_g"].shape)
                 # Compute embedding similarities
+                if self.align_method=="ot":
+                    aligned_embeddings = aligned_embeddings.unsqueeze(0)
                 emb_metrics = self.compute_embedding_similarity(
                     aligned_embeddings, batch["emb_g"]
                 )

@@ -48,10 +48,10 @@ class AlignerOT(nn.Module):
         with torch.no_grad():
             for i in range(number):
                 cost = ((source_embeddings[i, :].unsqueeze(0) - target_embeddings[i, :].unsqueeze(1)) ** 2) * self.scale
-                matrix_temp[i, :, :] = sinkhorn(source_dis, target_dis, cost)[0]
+                matrix_temp[i, :, :] = sinkhorn(source_dis, target_dis, cost)[0]  # [number,sourece_dim,target_dim]
 
         # Return averaged OT matrix adjusted with delta_ot
-        return matrix_temp.mean(dim=0) * target_dim * self.scale + delta_ot
+        return matrix_temp.mean(dim=0) * target_dim * self.scale + delta_ot  # [sourece_dim, target_dim]
 
     def forward(self, X, Y):
         """

@@ -121,8 +121,8 @@ class EmbeddingInverter(torch.nn.Module):
         """Decode embeddings back to text."""
 
         if self.align_method == "ot":
-            seq_len, hidden_size = embeddings.shape
-            embeddings = embeddings.view(1, seq_len, hidden_size)
+            # seq_len, hidden_size = embeddings.shape
+            embeddings = embeddings.unsqueeze(0)
         print("decoding embeddings shape: ", embeddings.shape)
         with torch.no_grad():
             batch_size, seq_length, hidden_size = embeddings.size()
