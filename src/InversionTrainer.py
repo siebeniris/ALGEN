@@ -173,14 +173,18 @@ class EmbeddingInverterTrainer:
 
         # Compute cosine similarity
         # [0= identical, 2=opposite]
-        cos_dist = np.mean([ - cosine_similarity(a.reshape(1, -1), t.reshape(1, -1))[0][0]
+        if len(aligned_np) == 2:
+
+            cos_sim = np.mean(cosine_similarity(aligned_np, target_np))
+        else:
+            cos_sim = np.mean([cosine_similarity(a.reshape(1, -1), t.reshape(1, -1))[0][0]
                             for a, t in zip(aligned_np, target_np)])
 
         # Compute MSE
         mse = np.mean((aligned_np - target_np) ** 2)
 
         return {
-            "embedding_cosine_distance": cos_dist,
+            "embedding_cos_sim": cos_sim,
             "embedding_mse": mse
         }
 
@@ -236,7 +240,7 @@ class EmbeddingInverterTrainer:
 
                 # Compute embedding similarities
                 emb_metrics = self.compute_embedding_similarity(
-                    aligned_embeddings, batch["emb_g"], batch["attention_mask_s"]
+                    aligned_embeddings, batch["emb_g"]
                 )
 
                 # Store texts for later metric computation
@@ -308,7 +312,7 @@ class EmbeddingInverterTrainer:
         checkpoints.sort(key=lambda x: int(x.split('_')[2].split('.')[0]))
 
         for checkpoint in checkpoints[:-keep_last_n]:
-            os.remove(os.path.join(self.save_dir, checkpoint))
+            os.remove(os.path.join(self.checkpoint_dir, checkpoint))
 
     def load_checkpoint(self, checkpoint_path: str, resume_training: bool = True):
         """Load model and training state from checkpoint"""
@@ -341,7 +345,7 @@ class EmbeddingInverterTrainer:
 
     def load_best_model(self):
         """Load the best performing model"""
-        best_model_path = os.path.join(self.save_dir, f'best_model_{self.align_method}.pt')
+        best_model_path = os.path.join(self.checkpoint_dir, f'best_model_{self.align_method}.pt')
         if os.path.exists(best_model_path):
             checkpoint = torch.load(best_model_path, map_location=self.model.device)
             self.model.load_state_dict(checkpoint['model_state_dict'])
