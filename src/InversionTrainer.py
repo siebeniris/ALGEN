@@ -284,14 +284,14 @@ class EmbeddingInverterTrainer:
         }
 
         # Save regular checkpoint
-        checkpoint_dir = os.path.join(self.save_dir, f"{self.align_method}_epochs{self.num_epochs}" )
-        os.makedirs(checkpoint_dir, exist_ok=True)
-        checkpoint_path = os.path.join(checkpoint_dir,  f'checkpoint_epoch_{epoch}.pt')
+        self.checkpoint_dir = os.path.join(self.save_dir, f"{self.align_method}_epochs{self.num_epochs}" )
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        checkpoint_path = os.path.join(self.checkpoint_dir,  f'checkpoint_epoch_{epoch}.pt')
         torch.save(checkpoint, checkpoint_path)
 
         # Save best model separately
         if is_best:
-            best_model_path = os.path.join(checkpoint_dir,
+            best_model_path = os.path.join(self.checkpoint_dir,
                                            f'best_model_{self.align_method}.pt')
             torch.save(checkpoint, best_model_path)
             print(f"Saved best model to {best_model_path}")
@@ -303,7 +303,7 @@ class EmbeddingInverterTrainer:
 
     def cleanup_old_checkpoints(self, keep_last_n: int = 3):
         """Remove old checkpoints, keeping only the last n"""
-        checkpoints = [f for f in os.listdir(self.save_dir)
+        checkpoints = [f for f in os.listdir(self.checkpoint_dir)
                        if f.startswith('checkpoint_epoch_') and f.endswith('.pt')]
         checkpoints.sort(key=lambda x: int(x.split('_')[2].split('.')[0]))
 
