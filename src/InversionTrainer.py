@@ -16,6 +16,7 @@ from InversionModel import EmbeddingInverter
 from create_dataset import EmbeddingDataset, custom_collate_fn
 from data_helper import load_data
 
+from utils import get_device
 
 class EmbeddingInverterTrainer:
     def __init__(
@@ -66,6 +67,7 @@ class EmbeddingInverterTrainer:
         )
 
         self.num_workers = 2
+        self.device = get_device()
 
         # Load from checkpoint if provided
         self.start_epoch = 0
@@ -188,7 +190,7 @@ class EmbeddingInverterTrainer:
         # print(batch)
 
         # Forward pass
-
+        batch = batch.to(self.device)
         aligned_embeddings = self.model(batch)
 
         aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
@@ -228,6 +230,7 @@ class EmbeddingInverterTrainer:
         with torch.no_grad():
             for batch in tqdm(eval_dataloader, desc="Evaluating"):
                 # Get aligned embeddings and decoded text
+                batch = batch.to(self.device)
                 aligned_embeddings = self.model(batch)
                 # might need to change later when tokenizers aren't the same.
                 decoded_texts = self.model.decode_embeddings(aligned_embeddings, batch["attention_mask_s"])
@@ -238,7 +241,7 @@ class EmbeddingInverterTrainer:
                 )
 
                 # Store texts for later metric computation
-                all_texts.extend(batch["text"])
+                all_texts.extend(batch["text"].detach().cpu().numpy())
                 all_decoded_texts.extend(decoded_texts)
 
                 # Store embedding metrics
@@ -387,7 +390,9 @@ class EmbeddingInverterTrainer:
             # Training loop
             pbar = tqdm(train_dataloader, desc=f"Epoch {epoch + 1}/{self.num_epochs}")
             for batch in pbar:
+
                 step_metrics = self.train_step(batch)
+
 
                 for k, v in step_metrics.items():
                     epoch_metrics[k].append(v)
