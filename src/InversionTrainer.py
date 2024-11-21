@@ -362,7 +362,7 @@ class EmbeddingInverterTrainer:
         # Create datasets
 
         # TODO: change this , DATA IS OVERLAPING.
-        all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)[:10]
+        all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)
         split_index = int(len(all_texts)*0.8)
         train_texts = all_texts[:split_index]
         eval_texts = all_texts[split_index:]
