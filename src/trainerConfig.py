@@ -13,7 +13,7 @@ class TrainerConfig:
     align_method: str = "linear"
     learning_rate: float = 1e-4
     batch_size: int = 64
-    num_epochs: int = 300
+    num_epochs: int = 100
 
     # Checkpoint configuration
     save_dir: str = "checkpoints"
