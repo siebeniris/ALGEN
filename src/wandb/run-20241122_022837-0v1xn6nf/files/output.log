@@ -1,0 +1,9 @@
+num workers for dataloader 2
+Epoch 1/300: 100%|██████████| 1/1 [00:00<00:00,  4.15it/s, train_loss=1.0911, train_mse_loss=0.0870, train_cos_loss=1.0041]
+Evaluating:   0%|          | 0/1 [00:00<?, ?it/s]
+decoding embeddings shape:  torch.Size([1, 48, 768])
+embeddings mean: -0.0006239651702344418, std: 0.09430424124002457
+all ones for attention_mask
+Encoder outputs last_hidden_state shape: torch.Size([1, 48, 768])
+decoded text: ['']
+torch.Size([1, 48, 768]) torch.Size([1, 48, 768])

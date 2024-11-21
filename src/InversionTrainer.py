@@ -29,7 +29,7 @@ class EmbeddingInverterTrainer:
             use_wandb: bool = True,
             align_method: str = "linear",
             learning_rate: float = 1e-4,
-            batch_size: int = 16,
+            batch_size: int = 1,
             num_epochs: int = 100,
             max_length: int = 128,
             decoding_strategy: str = "beam",
@@ -174,7 +174,6 @@ class EmbeddingInverterTrainer:
         # Compute cosine similarity
         # [0= identical, 2=opposite]
         if len(aligned_np) == 2:
-
             cos_sim = np.mean(cosine_similarity(aligned_np, target_np))
         else:
             cos_sim = np.mean([cosine_similarity(a.reshape(1, -1), t.reshape(1, -1))[0][0]
@@ -236,8 +235,9 @@ class EmbeddingInverterTrainer:
                 # Get aligned embeddings and decoded text
                 aligned_embeddings = self.model(batch)
                 # might need to change later when tokenizers aren't the same.
-                decoded_texts = self.model.decode_embeddings(aligned_embeddings, batch["attention_mask_s"])
+                decoded_texts = self.model.decode_embeddings(aligned_embeddings)
 
+                print("aligned embedding and original: ",aligned_embeddings.shape, batch["emb_g"].shape)
                 # Compute embedding similarities
                 emb_metrics = self.compute_embedding_similarity(
                     aligned_embeddings, batch["emb_g"]
@@ -360,8 +360,8 @@ class EmbeddingInverterTrainer:
         # Create datasets
 
         # TODO: change this , DATA IS OVERLAPING.
-        all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)
-        split_index = int(len(all_texts)*0.8)
+        all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)[:2]
+        split_index = int(len(all_texts)*0.5)
         train_texts = all_texts[:split_index]
         eval_texts = all_texts[split_index:]
 
@@ -374,7 +374,7 @@ class EmbeddingInverterTrainer:
             batch_size=self.batch_size,
             shuffle=True,
             collate_fn=custom_collate_fn,
-            num_workers=self.num_workers,  # if you're using multiple workers
+            # num_workers=self.num_workers,  # if you're using multiple workers
             pin_memory=False,  # if you're using GPU
             drop_last=False,
         )

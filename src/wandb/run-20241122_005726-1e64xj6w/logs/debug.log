@@ -23,3 +23,4 @@ config: {'model_g': 't5-base', 'model_s': 't5-small', 'align_method': 'linear', 
 2024-11-22 00:57:28,619 INFO    MainThread:82594 [wandb_run.py:_redirect():2376] Wrapping output streams.
 2024-11-22 00:57:28,619 INFO    MainThread:82594 [wandb_run.py:_redirect():2401] Redirects installed.
 2024-11-22 00:57:28,628 INFO    MainThread:82594 [wandb_init.py:init():911] run started, returning control to user process
+2024-11-22 02:14:04,745 WARNING MsgRouterThr:82594 [router.py:message_loop():77] message_loop has been closed

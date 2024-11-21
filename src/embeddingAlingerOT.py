@@ -8,13 +8,14 @@ class AlignerOT(nn.Module):
         super(AlignerOT, self).__init__()
         # Load pre-trained embeddings
         # Dimensions
-        self.device= device
+        self.device = device
         self.source_dimension = source_dimension
         self.target_dimension = target_dimension
         print(f"initializing source {self.source_dimension} and target {self.target_dimension}")
 
         # Transformation matrix for aligning source emebddings to target emebddings
-        self.delta_ot = nn.Parameter(torch.FloatTensor(self.target_dimension, self.target_dimension), requires_grad=True)
+        self.delta_ot = nn.Parameter(torch.FloatTensor(self.target_dimension, self.target_dimension),
+                                     requires_grad=True)
         self.mats_align = nn.Linear(self.source_dimension, self.target_dimension)
         self.mats_align = self.mats_align.to(device)
         nn.init.xavier_uniform_(self.delta_ot)

@@ -10,7 +10,7 @@ class TrainerConfig:
     max_length: int = 64
 
     # Training configuration
-    align_method: str = "linear"
+    align_method: str = "ot"
     learning_rate: float = 1e-4
     batch_size: int = 64
     num_epochs: int = 100

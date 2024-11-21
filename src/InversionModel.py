@@ -123,6 +123,7 @@ class EmbeddingInverter(torch.nn.Module):
         if self.align_method == "ot":
             seq_len, hidden_size = embeddings.shape
             embeddings = embeddings.view(1, seq_len, hidden_size)
+        print("decoding embeddings shape: ", embeddings.shape)
         with torch.no_grad():
             batch_size, seq_length, hidden_size = embeddings.size()
             print(f"embeddings mean: {embeddings.mean().item()}, std: {embeddings.std().item()}")
