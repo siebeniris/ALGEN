@@ -1,2 +1,0 @@
-num workers for dataloader 2
-Epoch 1/300: 100%|██████████| 1/1 [00:49<00:00, 49.80s/it, train_loss=1.0771, train_mse_loss=0.0862, train_cos_loss=0.9909]

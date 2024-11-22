@@ -9,6 +9,7 @@ from nltk.translate.bleu_score import corpus_bleu
 from rouge_score import rouge_scorer
 from typing import List, Dict
 import os
+import datetime
 from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
 
@@ -17,6 +18,16 @@ from create_dataset import EmbeddingDataset, custom_collate_fn
 from data_helper import load_data
 
 from utils import get_device
+
+
+def in_debug_mode():
+    try:
+        import pydevd  # PyCharm debugger
+        return True
+    except ImportError:
+        return False
+
+
 
 class EmbeddingInverterTrainer:
     def __init__(
@@ -317,7 +328,8 @@ class EmbeddingInverterTrainer:
         }
 
         # Save regular checkpoint
-        self.checkpoint_dir = os.path.join(self.save_dir, f"{self.align_method}_epochs_{self.num_epochs}_samples_{self.train_samples}" )
+        timestamp = str(datetime.datetime.now())
+        self.checkpoint_dir = os.path.join(self.save_dir, f"{self.align_method}_epochs_{self.num_epochs}_samples_{self.train_samples}_{timestamp}" )
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         checkpoint_path = os.path.join(self.checkpoint_dir,  f'checkpoint_epoch_{epoch}.pt')
         torch.save(checkpoint, checkpoint_path)
@@ -387,9 +399,13 @@ class EmbeddingInverterTrainer:
     def train(self):
         """Main training loop"""
         # Create datasets
-
         # TODO: change this , DATA IS OVERLAPING.
         all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)
+        if in_debug_mode():
+            all_texts = all_texts[:10]
+
+        print(f"loading datasize {len(all_texts)}")
+
         split_index = int(len(all_texts)*0.8)
         train_texts = all_texts[:split_index]
         eval_texts = all_texts[split_index:]

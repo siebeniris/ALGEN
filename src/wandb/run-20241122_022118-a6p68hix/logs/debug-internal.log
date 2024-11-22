@@ -1,8 +1,0 @@
-{"time":"2024-11-22T02:21:18.117557+11:00","level":"INFO","msg":"using version","core version":"0.18.5"}
-{"time":"2024-11-22T02:21:18.117605+11:00","level":"INFO","msg":"created symlink","path":"/Users/yiyichen/Documents/experiments/FewShotInversion/src/wandb/run-20241122_022118-a6p68hix/logs/debug-core.log"}
-{"time":"2024-11-22T02:21:18.251407+11:00","level":"INFO","msg":"created new stream","id":"a6p68hix"}
-{"time":"2024-11-22T02:21:18.251649+11:00","level":"INFO","msg":"stream: started","id":"a6p68hix"}
-{"time":"2024-11-22T02:21:18.251674+11:00","level":"INFO","msg":"sender: started","stream_id":"a6p68hix"}
-{"time":"2024-11-22T02:21:18.251621+11:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"a6p68hix"}}
-{"time":"2024-11-22T02:21:18.251634+11:00","level":"INFO","msg":"handler: started","stream_id":{"value":"a6p68hix"}}
-{"time":"2024-11-22T02:21:19.199483+11:00","level":"INFO","msg":"Starting system monitor"}

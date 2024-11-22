@@ -1,8 +1,0 @@
-{"time":"2024-11-22T02:24:37.188068+11:00","level":"INFO","msg":"using version","core version":"0.18.5"}
-{"time":"2024-11-22T02:24:37.188112+11:00","level":"INFO","msg":"created symlink","path":"/Users/yiyichen/Documents/experiments/FewShotInversion/src/wandb/run-20241122_022437-yf41l9do/logs/debug-core.log"}
-{"time":"2024-11-22T02:24:37.320804+11:00","level":"INFO","msg":"created new stream","id":"yf41l9do"}
-{"time":"2024-11-22T02:24:37.32105+11:00","level":"INFO","msg":"stream: started","id":"yf41l9do"}
-{"time":"2024-11-22T02:24:37.321136+11:00","level":"INFO","msg":"sender: started","stream_id":"yf41l9do"}
-{"time":"2024-11-22T02:24:37.321038+11:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"yf41l9do"}}
-{"time":"2024-11-22T02:24:37.321057+11:00","level":"INFO","msg":"handler: started","stream_id":{"value":"yf41l9do"}}
-{"time":"2024-11-22T02:24:37.853558+11:00","level":"INFO","msg":"Starting system monitor"}
