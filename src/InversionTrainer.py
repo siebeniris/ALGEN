@@ -196,6 +196,7 @@ class EmbeddingInverterTrainer:
         # batch = batch.to(self.device)
         aligned_embeddings = self.model(batch)
 
+        # reshape to [batch_size*seq_len, hidden_dim] for evaluating cos_loss.
         aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
         target_embeddings_reshaped = batch["emb_g"].view(-1, batch["emb_g"].size(-1))
         batch_seq_len = target_embeddings_reshaped.shape[0]
@@ -237,13 +238,35 @@ class EmbeddingInverterTrainer:
                 # might need to change later when tokenizers aren't the same.
                 decoded_texts = self.model.decode_embeddings(aligned_embeddings)
 
-                print("aligned embedding and original: ",aligned_embeddings.shape, batch["emb_g"].shape)
+                print("aligned embedding and original: ", aligned_embeddings.shape, batch["emb_g"].shape)
                 # Compute embedding similarities
-                if self.align_method=="ot":
+                if self.align_method == "ot":
+                    # [1, seq_length, hidden_size]
                     aligned_embeddings = aligned_embeddings.unsqueeze(0)
+
                 emb_metrics = self.compute_embedding_similarity(
                     aligned_embeddings, batch["emb_g"]
                 )
+
+                ###### compute the loss
+                aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
+                target_embeddings_reshaped = batch["emb_g"].view(-1, batch["emb_g"].size(-1))
+                batch_seq_len = target_embeddings_reshaped.shape[0]
+                target = torch.ones(batch_seq_len).to(self.device)
+                # [batch_size*seq_len, hidden_dim]
+
+                eval_cos_loss = self.cos_loss(aligned_embeddings_reshaped, target_embeddings_reshaped, target)
+                eval_mse_loss = self.mse_loss(aligned_embeddings, batch["emb_g"])
+
+                # eval_loss
+                eval_loss = eval_mse_loss + eval_cos_loss
+
+                eval_loss_metrics = {
+                    "loss": eval_loss,
+                    "cos_loss": eval_cos_loss,
+                    "mse_loss": eval_mse_loss
+
+                }
 
                 # Store texts for later metric computation
                 all_texts.extend(batch["text"])
@@ -251,6 +274,9 @@ class EmbeddingInverterTrainer:
 
                 # Store embedding metrics
                 for k, v in emb_metrics.items():
+                    all_metrics[k].append(v)
+
+                for k,v in eval_loss_metrics.items():
                     all_metrics[k].append(v)
 
         # Compute text generation metrics
@@ -262,6 +288,7 @@ class EmbeddingInverterTrainer:
             final_metrics[f"eval_{k}"] = np.mean(v)
         for k, v in text_metrics.items():
             final_metrics[f"eval_{k}"] = v
+
 
         self.model.train()
         return final_metrics
@@ -417,9 +444,9 @@ class EmbeddingInverterTrainer:
 
             # Save best model
             # Save checkpoint and check for best model
-            is_best = eval_metrics["eval_embedding_mse"] < self.best_eval_loss
+            is_best = eval_metrics["eval_loss"] < self.best_eval_loss
             if is_best:
-                self.best_eval_loss = eval_metrics["eval_embedding_mse"]
+                self.best_eval_loss = eval_metrics["eval_loss"]
 
             self.save_checkpoint(epoch, metrics, is_best=is_best)
 
