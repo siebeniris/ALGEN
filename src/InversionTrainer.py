@@ -269,7 +269,7 @@ class EmbeddingInverterTrainer:
                 eval_cos_loss = self.cos_loss(aligned_embeddings_reshaped, target_embeddings_reshaped, target)
                 eval_mse_loss = self.mse_loss(aligned_embeddings, batch["emb_g"])
 
-                eval_cos_loss = eval_cos_loss.detch().cpu().numpy()
+                eval_cos_loss = eval_cos_loss.detach().cpu().numpy()
                 eval_mse_loss = eval_mse_loss.detach().cpu().numpy()
 
                 # eval_loss

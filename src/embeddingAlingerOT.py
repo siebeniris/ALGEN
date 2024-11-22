@@ -46,6 +46,7 @@ class AlignerOT(nn.Module):
         # sinkhorn: solve OT efficiently, use entropy regularization to make OT more stable and scalable.
         # min_T <T,C> - \epsilon H(T) (entropy of the transportation plan)
         with torch.no_grad():
+            # for each token: there is a transport plan.
             for i in range(number):
                 cost = ((source_embeddings[i, :].unsqueeze(0) - target_embeddings[i, :].unsqueeze(1)) ** 2) * self.scale
                 matrix_temp[i, :, :] = sinkhorn(source_dis, target_dis, cost)[0]  # [number,sourece_dim,target_dim]
