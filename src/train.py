@@ -38,6 +38,7 @@ def train_with_config(config: TrainerConfig):
         model_G_name=config.model_G_name,
         model_S_name=config.model_S_name,
         save_dir=config.save_dir,
+        # resume training
         checkpoint_path=config.checkpoint_path,
         resume_training=config.resume_training,
         use_wandb=config.use_wandb,
@@ -75,10 +76,22 @@ def main():
 
     parser = argparse.ArgumentParser(description='Train Embedding Inverter')
     parser.add_argument('--config', type=str, choices=[
-        'default', 'ot', 'neural', 'orthogonal', 'linear'
+        'default', 'ot'
     ], default='default', help='Configuration preset to use')
     parser.add_argument('--config_path', type=str, help='Path to custom YAML config file')
 
+    parser.add_argument('--save_dir', type=str, default='checkpoints', help='Directory to save checkpoints')
+    parser.add_argument("--checkpoint_path", type=str, default=None, help="Give a checkpoint path to resume training")
+    parser.add_argument("--resume_training", action="store_true", help="Whether to resume training or not True or False")
+
+    parser.add_argument('--num_epochs', type=int, default=100, help='Number of training epochs')
+    parser.add_argument('--batch_size', type=int, default=1, help='Batch size for training')
+    parser.add_argument('--learning_rate', type=float, default=1e-4, help='Learning rate for optimizer')
+    parser.add_argument('--align_method', type=str, default='ot', help='Alignment method to use')
+    parser.add_argument('--train_samples', type=int, default=1000, help='Number of training samples to use')
+
+    parser.add_argument('--use_wandb', action='store_true', help='Enable Weights & Biases logging')
+    parser.add_argument("--")
     args = parser.parse_args()
 
     # Load configuration
@@ -96,6 +109,18 @@ def main():
         }
         config = configs[args.config]()
         print(f"Using {args.config} configuration")
+
+    # override config with CLI arguments
+    config.save_dir = args.save_dir
+    config.num_epochs = args.num_epochs
+    config.batch_size = args.batch_size
+    config.learning_rate = args.learning_rate
+    config.align_method = args.align_method
+    config.train_samples = args.train_samples
+    config.use_wandb = args.use_wandb
+    config.checkpoint_path = args.checkpoint_path
+    config.resume_training = args.resume_training
+
 
     # Print configuration
     print("\nTraining Configuration:")

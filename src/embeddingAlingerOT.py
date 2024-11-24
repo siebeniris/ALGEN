@@ -28,7 +28,7 @@ class AlignerOT(nn.Module):
         Calculates the Optimal Transport (OT) matrix to align source_embeddings to target_embeddings.
         """
         device = delta_ot.device
-
+        # TODO: need to deal with this in batch
         number = source_embeddings.shape[0]  # Number of samples for averaging
         source_dim = source_embeddings.shape[-1]
         target_dim = target_embeddings.shape[-1]

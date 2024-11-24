@@ -38,7 +38,7 @@ class EmbeddingInverterTrainer:
             checkpoint_path: str = None,
             resume_training: bool = False,
             use_wandb: bool = True,
-            align_method: str = "linear",
+            align_method: str = "ot",
             learning_rate: float = 1e-4,
             batch_size: int = 1,
             num_epochs: int = 100,
@@ -79,11 +79,15 @@ class EmbeddingInverterTrainer:
 
         self.num_workers = 2
         self.device = get_device()
+        # get the checkpoint_dir.
+        output_dir = f"{self.align_method}_epochs{self.num_epochs}_train{self.train_samples}_lr{self.learning_rate}_bs{self.batch_size}"
+        self.checkpoint_dir = os.path.join(self.save_dir, output_dir)
 
         # Load from checkpoint if provided
         self.start_epoch = 0
         self.best_eval_loss = float('inf')
         self.checkpoint_path = checkpoint_path
+
 
         if checkpoint_path is not None:
             self.load_checkpoint(checkpoint_path, resume_training)
@@ -331,8 +335,6 @@ class EmbeddingInverterTrainer:
         }
 
         # Save regular checkpoint
-        timestamp = str(datetime.datetime.now())
-        self.checkpoint_dir = os.path.join(self.save_dir, f"{self.align_method}_epochs_{self.num_epochs}_samples_{self.train_samples}_{timestamp}" )
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         checkpoint_path = os.path.join(self.checkpoint_dir,  f'checkpoint_epoch_{epoch}.pt')
         torch.save(checkpoint, checkpoint_path)
