@@ -1,8 +1,7 @@
 #!/bin/bash -e
-
-#SBATCH --job-name=inversion
-#SBATCH --output=inversion_%j.out
-#SBATCH --error=inversion_%j.err
+#SBATCH --job-name=embeddings
+#SBATCH --output=embeddings_%j.out
+#SBATCH --error=embeddingsn_%j.err
 #SBATCH --mem=50GB
 #SBATCH --time=6-00:00:00
 
