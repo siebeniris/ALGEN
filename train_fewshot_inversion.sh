@@ -4,7 +4,7 @@
 #SBATCH --output=inversion_%j.out
 #SBATCH --error=inversion_%j.err
 #SBATCH --mem=50GB
-#SBATCH --time=2-00:00:00
+#SBATCH --time=6-00:00:00
 
 set -x
 

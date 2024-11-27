@@ -87,12 +87,16 @@ def mapping_source_to_target_space(X, Y, test_X, test_Y,
     ## this is one-off inverse. no need batches
     aligned_batches = []
     test_batches = []
-
+    X_dim = X.shape[-1]
     if slice_x is not None:
         if shift == "left":
             x = X[:sample_size][:, :slice_x]
         elif shift == "right":
             x = X[:sample_size][:, slice_x:]
+        elif shift == "random":
+            selected_dims = np.random.choice(X_dim, size=slice_x, replace=False)
+            x = X[:sample_size][:, selected_dims]
+            # x = X[:sample_size]
         else:
             x = X[:sample_size][:, :slice_x]
 
@@ -110,6 +114,9 @@ def mapping_source_to_target_space(X, Y, test_X, test_Y,
             aligned_test_x = test_x[:, :slice_x] @ A
         elif shift == "right":
             aligned_test_x = test_x[:, slice_x:] @ A
+        elif shift == "random":
+            selected_dims = np.random.choice(X_dim, size=slice_x, replace=False)
+            aligned_test_x = test_X[:, selected_dims] @ A
         else:
             aligned_test_x = test_x[:, :slice_x] @ A
     else:
@@ -195,7 +202,8 @@ def iterate_batch_sizes(X, Y, test_X, test_Y, test_vocab, writer):
 def find_optimal_dimension(X, Y, test_X, test_Y, test_vocab, batch_size, writer):
     dim = X.shape[-1]
     for slice_x in range(5, dim, 5):
-        for shift in ["left", "right"]:
+        # for shift in ["left", "right"]:
+        for shift in ["random"]:
             test_accuracy, test_cosine_sim, X_Y_cossim = mapping_source_to_target_space(X, Y, test_X, test_Y,
                                                                                         test_vocab,
                                                                                         batch_size,

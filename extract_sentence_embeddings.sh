@@ -8,6 +8,8 @@
 
 set -x
 
+data_path=$1
+
 
 wd=$(pwd)
 echo "working directory ${wd}"
@@ -24,4 +26,4 @@ echo "sif ${SIF}"
 
 
 srun singularity exec --nv --cleanenv --bind ${wd}:${wd} ${SIF} \
-    python src/pseudoinverse_sentence_embeddings.py
+    python src/get_sentence_embeddings.py ${data_path}

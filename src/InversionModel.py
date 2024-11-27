@@ -4,7 +4,6 @@ from transformers.modeling_outputs import BaseModelOutput
 from transformers import T5Tokenizer, T5Model, T5ForConditionalGeneration
 import torch.nn as nn
 from torch.nn import LayerNorm
-
 import transformers.models.t5.modeling_t5 as t5_modeling
 
 t5_modeling.T5LayerNorm = LayerNorm
@@ -97,7 +96,7 @@ class EmbeddingInverter(torch.nn.Module):
 
         inputs = self.tokenizer_S(
             text,
-            return_tensors="pt", padding=True, truncation=True, max_length=self.max_length
+            return_tensors="pt", padding="max_length", truncation=True, max_length=self.max_length
         ).to(self.device)
 
         with torch.no_grad():
@@ -111,7 +110,7 @@ class EmbeddingInverter(torch.nn.Module):
         if isinstance(text, str):
             text = [text]
 
-        inputs = self.tokenizer_G(text, return_tensors="pt", padding=True, max_length=self.max_length,
+        inputs = self.tokenizer_G(text, return_tensors="pt", padding="max_length", max_length=self.max_length,
                                   truncation=True).to(self.device)
         with torch.no_grad():
             embeddings = self.encoder_G(**inputs).last_hidden_state
