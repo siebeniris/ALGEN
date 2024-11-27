@@ -69,15 +69,16 @@ def main(data_path):
     for model_name in ["t5-small", "t5-base", "google/flan-t5-base", "google/flan-t5-base"]:
         tokenizer, encoder = get_tokenizer_encoder(model_name)
         for max_length in [32, 64, 128]:
-            outputfile = f"{output_dir}/{model_name}_train_{max_length}.npy"
+            model_name_ = model_name.replace("/","_")
+            outputfile = f"{output_dir}/{model_name_}_train_{max_length}.npy"
             if not os.path.exists(outputfile):
                 print(f"processing {model_name} max length {max_length}")
                 with torch.no_grad():
                     train_embeddings = get_embeddings_stack(tokenizer, encoder, train_data, max_length=max_length)
-                    np.save(f"{output_dir}/{model_name}_train_{max_length}.npy", train_embeddings)
+                    np.save(f"{output_dir}/{model_name_}_train_{max_length}.npy", train_embeddings)
 
                     test_embeddings = get_embeddings_stack(tokenizer, encoder, test_data, max_length=max_length)
-                    np.save(f"{output_dir}/{model_name}_test_{max_length}.npy", test_embeddings)
+                    np.save(f"{output_dir}/{model_name_}_test_{max_length}.npy", test_embeddings)
 
             torch.cuda.empty_cache()
         del encoder
