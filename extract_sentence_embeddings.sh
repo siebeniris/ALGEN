@@ -1,7 +1,7 @@
 #!/bin/bash -e
 #SBATCH --job-name=embeddings
 #SBATCH --output=embeddings_%j.out
-#SBATCH --error=embeddingsn_%j.err
+#SBATCH --error=embeddings_%j.err
 #SBATCH --mem=50GB
 #SBATCH --time=6-00:00:00
 
