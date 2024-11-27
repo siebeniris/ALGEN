@@ -17,8 +17,8 @@ output_dir = "sentence_embeddings/eng_latn"
 os.makedirs(output_dir, exist_ok=True)
 
 def get_tokenizer_encoder(model_name="t5-base"):
-    tokenizer = T5Tokenizer.from_pretrained(model_name)
-    encoder = T5Model.from_pretrained(model_name).encoder
+    tokenizer = T5Tokenizer.from_pretrained(model_name).to(device)
+    encoder = T5Model.from_pretrained(model_name).encoder.to(device)
     return tokenizer, encoder
 
 
