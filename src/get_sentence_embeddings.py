@@ -46,7 +46,7 @@ def load_data(
         data = [x.replace("\n", "") for x in f.readlines()]
     print(f"Data length {len(data)}")
     # data_sampled = data[:10000]+data[-300:]
-    return data[:5000], data[-300:]
+    return data[:1000], data[-300:]
 
 
 def get_embeddings_stack(tokenizer, encoder, data, max_length):

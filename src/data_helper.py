@@ -27,6 +27,16 @@ def load_data(dataset_name, language, nr_samples=500):
         datalist = dataset["text"]
         return datalist
 
+    elif dataset_name == "Morphology":
+        # TODO: refactor here later to have different languages.
+        data_path="/Users/yiyichen/Documents/experiments/datasets/Morphology-Matters-corpus/eng-literal/train.txt"
+        print(f"Loading data from {data_path}")
+        with open(data_path) as f:
+            data = [x.replace("\n", "") for x in f.readlines()]
+        print(f"Data length {len(data)}")
+        # data_sampled = data[:10000]+data[-300:]
+        return data[:1000] + data[-300:]
+
     else:
         print(f"There are 20 sentences of the same meaning in different languages for testing...")
         datalist = ["Hello, world!", "Hallo, Welt!", "你好，世界！",

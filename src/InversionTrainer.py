@@ -28,12 +28,11 @@ def in_debug_mode():
         return False
 
 
-
 class EmbeddingInverterTrainer:
     def __init__(
             self,
-            model_G_name: str = "t5-base",
-            model_S_name: str = "t5-small",
+            model_G_name: str = "google/flan-t5-small",
+            model_S_name: str = "t5-base",
             save_dir: str = "checkpoints",
             checkpoint_path: str = None,
             resume_training: bool = False,
@@ -42,12 +41,12 @@ class EmbeddingInverterTrainer:
             learning_rate: float = 1e-4,
             batch_size: int = 1,
             num_epochs: int = 100,
-            max_length: int = 128,
+            max_length: int = 32,
             decoding_strategy: str = "beam",
-            dataset_name: str = "flores",
+            dataset_name: str = "Morphology",
             language_script: str = "eng_Latn",
             train_samples: int = 1000,
-            eval_samples: int = 200,
+            eval_samples: int = 300,
     ):
         self.align_method = align_method
         self.learning_rate = learning_rate
@@ -87,7 +86,6 @@ class EmbeddingInverterTrainer:
         self.start_epoch = 0
         self.best_eval_loss = float('inf')
         self.checkpoint_path = checkpoint_path
-
 
         if checkpoint_path is not None:
             self.load_checkpoint(checkpoint_path, resume_training)
@@ -192,7 +190,7 @@ class EmbeddingInverterTrainer:
         # [0= identical, 2=opposite]
 
         cos_sim = np.mean([cosine_similarity(a.reshape(1, -1), t.reshape(1, -1))[0][0]
-                            for a, t in zip(aligned_np, target_np)])
+                           for a, t in zip(aligned_np, target_np)])
 
         # Compute MSE
         mse = np.mean((aligned_np - target_np) ** 2)
@@ -213,7 +211,7 @@ class EmbeddingInverterTrainer:
 
         # reshape to [batch_size*seq_len, hidden_dim] for evaluating cos_loss.
         aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
-        target_embeddings_reshaped = batch["emb_g"].view(-1, batch["emb_g"].size(-1))
+        target_embeddings_reshaped = batch["Y"].view(-1, batch["Y"].size(-1))
         batch_seq_len = target_embeddings_reshaped.shape[0]
         target = torch.ones(batch_seq_len).to(self.device)
 
@@ -224,7 +222,7 @@ class EmbeddingInverterTrainer:
         )
 
         # Compute MSE loss
-        mse_loss = self.mse_loss(aligned_embeddings, batch["emb_g"])
+        mse_loss = self.mse_loss(aligned_embeddings, batch["Y"])
 
         # Weighted combination
         # TODO: we can also add weights for the losses,
@@ -245,33 +243,31 @@ class EmbeddingInverterTrainer:
         all_metrics = defaultdict(list)
         all_texts = []
         all_decoded_texts = []
+        all_decoded_texts_Y = []
 
         with torch.no_grad():
             for batch in tqdm(eval_dataloader, desc="Evaluating"):
                 # Get aligned embeddings and decoded text
                 aligned_embeddings = self.model(batch)
                 # might need to change later when tokenizers aren't the same.
-                decoded_texts = self.model.decode_embeddings(aligned_embeddings)
-
-                print("aligned embedding and original: ", aligned_embeddings.shape, batch["emb_g"].shape)
+                decoded_texts_X = self.model.decode_embeddings(aligned_embeddings, batch["Y_attention_mask"])
+                decoded_texts_Y = self.model.decode_embeddings(batch["Y"], batch["Y_attention_mask"])
+                print("aligned embedding and original: ", aligned_embeddings.shape, batch["Y"].shape)
                 # Compute embedding similarities
-                if self.align_method == "ot":
-                    # [1, seq_length, hidden_size]
-                    aligned_embeddings = aligned_embeddings.unsqueeze(0)
 
                 emb_metrics = self.compute_embedding_similarity(
-                    aligned_embeddings, batch["emb_g"]
+                    aligned_embeddings, batch["Y"]
                 )
 
                 ###### compute the loss
                 aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
-                target_embeddings_reshaped = batch["emb_g"].view(-1, batch["emb_g"].size(-1))
+                target_embeddings_reshaped = batch["Y"].view(-1, batch["Y"].size(-1))
                 batch_seq_len = target_embeddings_reshaped.shape[0]
                 target = torch.ones(batch_seq_len).to(self.device)
                 # [batch_size*seq_len, hidden_dim]
 
                 eval_cos_loss = self.cos_loss(aligned_embeddings_reshaped, target_embeddings_reshaped, target)
-                eval_mse_loss = self.mse_loss(aligned_embeddings, batch["emb_g"])
+                eval_mse_loss = self.mse_loss(aligned_embeddings, batch["Y"])
 
                 eval_cos_loss = eval_cos_loss.detach().cpu().numpy()
                 eval_mse_loss = eval_mse_loss.detach().cpu().numpy()
@@ -288,25 +284,32 @@ class EmbeddingInverterTrainer:
 
                 # Store texts for later metric computation
                 all_texts.extend(batch["text"])
-                all_decoded_texts.extend(decoded_texts)
+                all_decoded_texts.extend(decoded_texts_X)
+                all_decoded_texts_Y.extend(decoded_texts_Y)
 
                 # Store embedding metrics
                 for k, v in emb_metrics.items():
                     all_metrics[k].append(v)
 
-                for k,v in eval_loss_metrics.items():
+                for k, v in eval_loss_metrics.items():
                     all_metrics[k].append(v)
 
         # Compute text generation metrics
-        text_metrics = self.compute_metrics(all_decoded_texts, all_texts)
+        text_metrics_X_Gold = self.compute_metrics(all_decoded_texts, all_texts)
+        text_metrics_X_Y = self.compute_metrics(all_decoded_texts, all_decoded_texts_Y)
+        text_metrics_Y_Gold = self.compute_metrics(all_decoded_texts_Y, all_texts)
 
         # Combine and average all metrics
         final_metrics = {}
         for k, v in all_metrics.items():
             final_metrics[f"eval_{k}"] = np.mean(v)
-        for k, v in text_metrics.items():
-            final_metrics[f"eval_{k}"] = v
 
+        for k, v in text_metrics_X_Gold.items():
+            final_metrics[f"X_Gold_eval_{k}"] = v
+        for k, v in text_metrics_X_Y.items():
+            final_metrics[f"X_Y_eval_{k}"] = v
+        for k, v in text_metrics_Y_Gold.items():
+            final_metrics[f"Y_Gold_eval_{k}"] = v
 
         self.model.train()
         return final_metrics
@@ -336,7 +339,7 @@ class EmbeddingInverterTrainer:
 
         # Save regular checkpoint
         os.makedirs(self.checkpoint_dir, exist_ok=True)
-        checkpoint_path = os.path.join(self.checkpoint_dir,  f'checkpoint_epoch_{epoch}.pt')
+        checkpoint_path = os.path.join(self.checkpoint_dir, f'checkpoint_epoch_{epoch}.pt')
         torch.save(checkpoint, checkpoint_path)
 
         # Save best model separately
@@ -401,6 +404,44 @@ class EmbeddingInverterTrainer:
             print("No best model checkpoint found")
             return None
 
+    def get_cossim(self, X, Y):
+        cos = torch.nn.CosineSimilarity(dim=1)
+        return cos(X, Y)
+
+    def mapping_X_to_Y(self, X, Y):
+        batch_size, seq_len, _ = X.shape
+        X_ = X.reshape(-1, X.shape[-1])
+        Y_ = Y.reshape(-1, Y.shape[-1])
+        As = torch.linalg.pinv(X_.T @ X_) @ X_.T @ Y_
+        Xs = X_ @ As
+        Xs_ = Xs.view(batch_size, seq_len, Xs.shape[-1])
+        return self.get_cossim(Xs, Y_).mean(), Xs_, As
+
+    def test_alignment(self, X_test, Y_test, As):
+        test_batch_size, test_seq_len, test_x_dim = X_test.shape
+
+        x = X_test.reshape(-1, X_test.shape[-1])
+        y = Y_test.reshape(-1, Y_test.shape[-1])
+        x_ = x @ As
+        cossim = self.get_cossim(x_, y).mean()
+        x_ = x_.view(test_batch_size, test_seq_len, x_.shape[-1])
+        return cossim, x_
+
+    def inversion_normal_function(self, train_data, test_data):
+        # align the embeddings from X to Y first
+        X, X_attention_mask = self.model.get_embeddings_S(train_data)
+        Y, Y_attention_mask, Y_gold_text = self.model.get_embeddings_G_and_ground_truth(train_data)
+
+        X_test, X_test_attention_mask = self.model.get_embeddings_S(test_data)
+        Y_test, Y_test_attention_mask, Y_test_gold_text = self.model.get_embeddings_G_and_ground_truth(test_data)
+
+        # align X to Y
+        X_Y_COSSIM, X_aligned, T = self.mapping_X_to_Y(X, Y)
+        x_y_test_cossim, x_test_aligned = self.test_alignment(X_test, Y_test, T)
+        return (X_aligned, Y, Y_attention_mask, Y_gold_text,
+                x_test_aligned, Y_test, Y_test_attention_mask, Y_test_gold_text,
+                X_Y_COSSIM, x_y_test_cossim)
+
     def train(self):
         """Main training loop"""
         # Create datasets
@@ -409,14 +450,27 @@ class EmbeddingInverterTrainer:
         if in_debug_mode():
             all_texts = all_texts[:10]
 
-        print(f"loading datasize {len(all_texts)}")
+            print(f"loading datasize {len(all_texts)}")
 
-        split_index = int(len(all_texts)*0.8)
-        train_texts = all_texts[:split_index]
-        eval_texts = all_texts[split_index:]
+            split_index = 8
+            train_texts = all_texts[:split_index]
+            eval_texts = all_texts[split_index:]
+        else:
+            train_texts = all_texts[:1000]
+            eval_texts = all_texts[1000:]
 
-        train_dataset = EmbeddingDataset(train_texts, self.model)
-        eval_dataset = EmbeddingDataset(eval_texts, self.model)
+        (X_aligned, Y, Y_attention_mask, Y_gold_text,
+         x_test_aligned, Y_test, Y_test_attention_mask, Y_test_gold_text,
+         X_Y_COSSIM, x_y_test_cossim) = self.inversion_normal_function(train_texts, eval_texts)
+
+        # print(X_Y_COSSIM, x_y_test_cossim)
+        # print(X_aligned.shape, Y.shape, x_test_aligned.shape, Y_test.shape, )
+
+        train_dataset = EmbeddingDataset(X_aligned, Y, Y_attention_mask, Y_gold_text)
+        eval_dataset = EmbeddingDataset(x_test_aligned, Y_test, Y_test_attention_mask, Y_test_gold_text)
+
+        ################# align embeddings.
+
         print(f"num workers for dataloader {self.num_workers}")
         # Create dataloaders
         train_dataloader = DataLoader(
@@ -480,10 +534,10 @@ def main():
     # Load data
     # Initialize trainer
     trainer = EmbeddingInverterTrainer(
-        align_method="linear",
+        align_method="ot",
         learning_rate=1e-4,
-        batch_size=128,
-        num_epochs=300
+        batch_size=2,
+        num_epochs=100
     )
 
     # Train model

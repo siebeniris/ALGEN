@@ -3,7 +3,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 import torch
 import torch.nn as nn
 
-from utils import get_weights_from_attention_mask
 import ot
 
 
@@ -130,96 +129,6 @@ class EmbeddingAlignerOrthogonal(nn.Module):
         return error
 
 
-def optimal_transport_align(source_embeddings, target_embeddings,
-                            source_attention_mask, target_attention_mask,
-                            reg=0.1, reg_m=10.0):
-    """
-    Align source embeddings to target embeddings using Optimal Transport with cosine distance normalized to [0, 1].
-
-    Args:
-        source_embeddings (torch.Tensor): Embeddings from source space [batch_size, seq_length, hidden_size].
-        target_embeddings (torch.Tensor): Embeddings from target space [batch_size, seq_length, hidden_size].
-        source_attention_mask (torch.Tensor):  [batch_size, seq_length]
-        target_attention_mask (torch.Tensor):  [batch_size, seq_length]
-        reg (float): Entropy regularization.
-        reg (float): Regularization parameter for entropy regularized OT.
-        reg_m (float): Marginal constraint relaxation regularization.
-
-    Returns:
-        aligned_embeddings (torch.Tensor): Source embeddings aligned to the target space.
-    """
-    # Ensure embeddings are on the same device
-    source_embeddings = source_embeddings.cpu().numpy()  # [batch_size, seq_length, hidden_size]
-    target_embeddings = target_embeddings.cpu().numpy()  # [batch_size, seq_length, hidden_size]
-
-    same_tokenizer = False
-    # check first if the attention masks are close, if not, then they are not from the same tokenizers for sure
-    if source_attention_mask.shape == target_attention_mask.shape \
-            and torch.equal(source_attention_mask, target_attention_mask):
-        same_tokenizer = True
-
-    print("same tokenizer:", same_tokenizer)
-
-    # source_weights (np.array): Weights for source distribution [seq_length_source].
-    # target_weights (np.array): Weights for target distribution [seq_length_target].
-    source_weights = get_weights_from_attention_mask(source_attention_mask)
-    target_weights = get_weights_from_attention_mask(target_attention_mask)
-
-    # check if the weights are balanced, then decide if we use OT.balanced or not.
-    are_balanced = False
-    if source_weights.shape == target_weights.shape:
-        are_balanced = torch.allclose(source_weights, target_weights, atol=1e-6)
-    print("balanced weights:", are_balanced)
-
-    # move weights to numpy
-    source_weights = source_weights.cpu().numpy()
-    target_weights = target_weights.cpu().numpy()
-
-    batch_size, seq_length, hidden_size = source_embeddings.shape
-    print(f"batch size: {batch_size}, seq length: {seq_length}, hidden size: {hidden_size}")
-
-    # when the tokenizers are the same, the weights are the same.
-    # then we do not need OT balanced or unbalanced to do alignment.
-    # in this case, we align the embeddings using cost matrix (Distance between embeddings)
-    if are_balanced:
-        print("running balanced OT alignemnt")
-        aligned_embeddings = []
-        for b in range(batch_size):
-            source_embeddings_batch = source_embeddings[b]
-            target_embeddings_batch = target_embeddings[b]
-
-            source_weights_batch = source_weights[b]
-            target_weights_batch = target_weights[b]
-            # seq_length x seq_length.
-            # source embeddings (13, 768) (seq_length x hidden_size)
-            cost_matrix = 1 - ((cosine_similarity(source_embeddings_batch, target_embeddings_batch) + 1) / 2)
-            transport_plan = ot.sinkhorn(source_weights_batch, target_weights_batch, cost_matrix, reg=reg)
-            # Align source embeddings to the target space
-            aligned_embedding = np.dot(transport_plan, target_embeddings_batch)
-            aligned_embeddings.append(aligned_embedding)
-
-        aligned_embeddings = np.array(aligned_embeddings)
-        return aligned_embeddings
-
-    else:
-        print(f"Running unbalanced OT")
-        aligned_embeddings = []
-        for b in range(batch_size):
-            # normalized
-            source_embeddings_batch = source_embeddings[b]
-            target_embeddings_batch = target_embeddings[b]
-            source_weights_batch = source_weights[b]
-            target_weights_batch = target_weights[b]
-            cost_matrix = 1 - ((cosine_similarity(source_embeddings_batch, target_embeddings_batch) + 1) / 2)
-            # sinkhorn_unbalanced, doesn't need source and target embeddings to be
-            transport_plan = ot.sinkhorn_unbalanced(source_weights_batch, target_weights_batch, cost_matrix, reg, reg_m)
-            # print(f"transport plan: {transport_plan.shape}")
-            aligned_embedding = np.dot(transport_plan, target_embeddings_batch)
-            aligned_embeddings.append(aligned_embedding)
-            # print(f"aligned embedding: {aligned_embedding.shape}")
-
-        aligned_embeddings = np.array(aligned_embeddings)
-        return aligned_embeddings
 
 
 def procrustes_alignment(source_embeddings, target_embeddings):

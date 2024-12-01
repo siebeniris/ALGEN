@@ -5,9 +5,9 @@ from typing import Optional
 @dataclass
 class TrainerConfig:
     # Model configuration
-    model_G_name: str = "t5-base"
-    model_S_name: str = "t5-small"
-    max_length: int = 64
+    model_G_name: str = "google/flan-t5-small"
+    model_S_name: str = "t5-base"
+    max_length: int = 32
 
     # Training configuration
     align_method: str = "ot"
