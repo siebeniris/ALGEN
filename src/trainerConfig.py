@@ -23,16 +23,11 @@ class TrainerConfig:
     # Logging configuration
     use_wandb: bool = True
 
-    # Alignment configuration
-    adjust_weights_with_magnitude: bool = True
-    ot_reg: float = 0.05
-    ot_reg_m: float = 1.0 # less smoothing
-
     # Generation configuration
     decoding_strategy: str = "beam"
 
     # Dataset configuration
-    dataset_name: str = "flores"
+    dataset_name: str = "Morphology"
     language_script: str = "eng_Latn"
     train_samples: int = 1000
     eval_samples: int = 200
@@ -68,7 +63,7 @@ def get_orthogonal_config():
 def get_ot_config():
     config = TrainerConfig()
     config.align_method = "ot"
-    config.batch_size = 1
+    config.batch_size = 64
     return config
 
 
