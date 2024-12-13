@@ -91,8 +91,10 @@ def aligning_per_lang_to_flant5(output_dir="results"):
     # intialize model names.
     for source_model_name in source_model_names:
         for target_model_name in target_model_names:
-            outputdir = os.path.join(output_dir,
-                                     f"{source_model_name.replace("/", "-")}_to_{target_model_name.replace("/", "-")}")
+            source_model_rename = source_model_name.replace("/", "-")
+            target_model_rename = target_model_name.replace("/", "-")
+            outputfolder = f"{source_model_rename}_to_{target_model_rename}"
+            outputdir = os.path.join(output_dir, outputfolder)
             os.makedirs(outputdir, exist_ok=True)
 
             print(f"aligning {source_model_name} embedding to {target_model_name}")
