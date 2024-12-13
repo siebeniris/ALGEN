@@ -8,7 +8,6 @@
 
 set -x
 
-aligner=$1
 
 wd=$(pwd)
 echo "working directory ${wd}"
@@ -25,4 +24,4 @@ echo "sif ${SIF}"
 
 
 srun singularity exec --nv --cleanenv --bind ${wd}:${wd} ${SIF} \
-    python src/train.py --config ${aligner}
+    python src/normal_equation_exp_batch.py
