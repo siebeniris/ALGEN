@@ -98,7 +98,7 @@ def add_punctuation_token_ids(sentence, tokenizer, max_length, punctuations=["."
     # print(tokens)
     mask = ~ torch.isin(input_ids[:, -2], torch.tensor(approved_second_last_token_ids))
     input_ids[mask, -2] = period_token_id
-    return {"input_ids": input_ids, "attention_mask": attention_masks}
+    return {"input_ids": input_ids.to(device), "attention_mask": attention_masks.to(device)}
 
 
 def fill_in_pad_eos_token(tokenizer):
@@ -138,10 +138,6 @@ def get_embeddings(train_data, test_data,
     Y_tokens = add_punctuation_token_ids(train_data, target_tokenizer, max_length)
     X_test_tokens = add_punctuation_token_ids(test_data, source_tokenizer, max_length)
     Y_test_tokens = add_punctuation_token_ids(test_data, target_tokenizer, max_length)
-    X_tokens = X_tokens.to(device)
-    Y_tokens = Y_tokens.to(device)
-    X_test_tokens = X_test_tokens.to(device)
-    Y_test_tokens = Y_test_tokens.to(device)
 
     with torch.no_grad():
         X = source_model.encoder(**X_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
