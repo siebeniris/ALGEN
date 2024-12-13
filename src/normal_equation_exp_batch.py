@@ -75,8 +75,8 @@ def aligning_and_testing(source_model, target_model,
         json.dump(result_dict, f)
 
     df_output = pd.DataFrame({
-        "X_output": X_test_output.detach().cpu().numpy().tolist(),
-        "Y_output": Y_test_output.detach().cpu().numpy().tolist(),
+        "X_output": X_test_output,
+        "Y_output": Y_test_output,
         "Y_gold": Y_test_gold
     })
 
