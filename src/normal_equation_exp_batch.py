@@ -24,8 +24,9 @@ lang2files = get_lang_file_dict()
 def aligning_and_testing(source_model, target_model,
                          source_tokenizer, target_tokenizer,
                          train_data, test_data,
+                         outputdir,
                          max_length=32,
-                         outputdir=""):
+                         ):
     # SET UP rouge scorer and cosine similarity
 
     # if not os.path.exists(outputfile):
@@ -84,44 +85,46 @@ def aligning_and_testing(source_model, target_model,
 
 def aligning_per_lang_to_flant5(output_dir="results"):
     lang_data_dir = "/Users/yiyichen/Documents/experiments/datasets/Morphology-Matters-corpus"
+    source_model_names = ["google/flan-t5-base", "google-t5/t5-base", "google/mt5-base",
+                          "facebook/mbart-large-50"]
+    target_model_names = ["google/flan-t5-small", "google/mt5-small"]
+    # intialize model names.
+    for source_model_name in source_model_names:
+        for target_model_name in target_model_names:
+            outputdir = os.path.join(output_dir,
+                                     f"{source_model_name.replace("/", "-")}_to_{target_model_name.replace("/", "-")}")
+            os.makedirs(outputdir, exist_ok=True)
 
-    for folderpath, lang in lang2files.items():
-        lang_data_dir_ = os.path.join(lang_data_dir, folderpath)
-        with open(os.path.join(lang_data_dir_, "train.txt")) as f:
-            train_data = [x.replace("\n", "") for x in f.readlines()]
+            print(f"aligning {source_model_name} embedding to {target_model_name}")
 
-        with open(os.path.join(lang_data_dir_, "test.txt")) as f:
-            test_data = [x.replace("\n", "") for x in f.readlines()][:200]
+            # iterate languages
+            for lang, folderpath in lang2files.items():
+                print(f"aligning language {lang}")
 
-        lang_script = folderpath
-        # intialize model names.
-        source_model_names = ["google/flan-t5-base", "google-t5/t5-base", "google/mt5-base",
-                              "facebook/mbart-large-50"]
-        target_model_names = ["google/flan-t5-small", "google/mt5-small"]
+                lang_data_dir_ = os.path.join(lang_data_dir, folderpath)
+                with open(os.path.join(lang_data_dir_, "train.txt")) as f:
+                    train_data = [x.replace("\n", "") for x in f.readlines()]
 
-        for source_model_name in source_model_names:
-            for target_model_name in target_model_names:
-                print(f"aligning {source_model_name} embedding to {target_model_name} in language {lang_script}")
+                with open(os.path.join(lang_data_dir_, "test.txt")) as f:
+                    test_data = [x.replace("\n", "") for x in f.readlines()][:200]
+
                 source_model, target_model, source_tokenizer, target_tokenizer \
                     = load_tokenizer_models(source_model_name, target_model_name)
 
-                outputdir = os.path.join(output_dir,
-                                         f"{source_model_name.replace("/", "-")}_to_{target_model_name.replace("/", "-")}")
-                os.makedirs(outputdir, exist_ok=True)
-
                 for train_samples in [100, 500, 1000]:
-                    print(f"There are {len(train_data)} samples and {len(test_data)} samples")
-                    outputdir_ = os.path.join(outputdir, f"{lang_script}_samples_{train_samples}_test_200")
+                    print(f"There are {train_samples} samples and {len(test_data)} samples")
+                    outputdir_ = os.path.join(outputdir, f"{lang}_samples_{train_samples}_test_200")
                     os.makedirs(outputdir_, exist_ok=True)
+                    print(outputdir_)
 
                     outputfile = os.path.join(outputdir_, "eval_results.json")
                     if not os.path.exists(outputfile):
                         train_data_ = train_data[:train_samples]
-
                         aligning_and_testing(source_model, target_model,
                                              source_tokenizer, target_tokenizer,
                                              train_data_, test_data,
-                                             32, outputdir_)
+                                             outputdir_,
+                                             32,)
                     else:
                         print(f"{outputdir_} exits")
 
