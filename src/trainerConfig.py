@@ -48,22 +48,11 @@ def get_linear_config():
     return config
 
 
-def get_neural_config():
-    config = TrainerConfig()
-    config.align_method = "neural"
-    return config
-
-
-def get_orthogonal_config():
-    config = TrainerConfig()
-    config.align_method = "orthogonal"
-    return config
-
 
 def get_ot_config():
     config = TrainerConfig()
     config.align_method = "ot"
-    config.batch_size = 64
+    config.batch_size = 1
     return config
 
 

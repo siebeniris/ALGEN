@@ -42,8 +42,16 @@ class EmbeddingInverter(torch.nn.Module):
         self.model_S.resize_token_embeddings(len(self.tokenizer_S))
 
         # get the encoders of the models.
+        assert hasattr(self.model_G, "encoder") == True
         self.encoder_G = self.model_G.encoder
-        self.encoder_S = self.model_S.encoder
+
+        if "t5" in model_S_name_or_path:
+        # if hasattr(self.model_S, "encoder"):
+            print("get the encoder....")
+            self.encoder_S = self.model_S.encoder
+        else:
+            print("the model itself is encoder")
+            self.encoder_S = self.model_S
 
         # resize token embeddings
         self.max_length = max_length
@@ -116,7 +124,6 @@ class EmbeddingInverter(torch.nn.Module):
         return embeddings, inputs["attention_mask"], ground_truth_text
 
 
-
     def decode_embeddings(self, embeddings, attention_mask=None):
         """Decode embeddings back to text."""
 
@@ -178,6 +185,7 @@ class EmbeddingInverter(torch.nn.Module):
                 )
                 decoded_text = [text.strip() for text in decoded_text]
                 # print(f"decoded text:", decoded_text)
+                print(decoded_text)
             except Exception as e:
                 print(f"Error during generation: {str(e)}")
                 decoded_text = ["Error during generation"] * batch_size

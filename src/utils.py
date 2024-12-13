@@ -1,6 +1,40 @@
 import torch
 
 
+def get_lang_file_dict():
+    # for the folder directory in the server
+    # folderdir = "dataset/Morphology-Matters-corpus"
+    return {'afr': 'afr-1953', 'aln': 'aln-aln',
+            'als': 'als', 'amh': 'amh', 'arb': 'arb-arb', 'arz': 'arz-arz',
+            'ayr': 'ayr-2011', 'bba': 'bba-bba', 'ben': 'ben-mussolmani',
+            'bqc': 'bqc-bqc', 'bul': 'bul-veren', 'cac': 'cac-ixtatan',
+            'cak': 'cak-central2003', 'ceb': 'ceb-pinadayag', 'ces': 'ces-kralicka',
+            'cmn': 'cmn-sf_ncv-zefania', 'cnh': 'cnh-cnh', 'crk': 'crk-mason',
+            'cym': 'cym-morgan1804', 'dan': 'dan-1931', 'deu': 'deu-luther1912',
+            'dje': 'dje', 'ell': 'ell-modern2009', 'eng': 'eng-literal',
+            'esu': 'esu', 'fin': 'fin-1992', 'fra': 'fra-pirotclamer',
+            'gug': 'gug', 'gui': 'gui', 'guj': 'guj-guj', 'gur': 'gur-frafra',
+            'hat': 'hat-1999', 'heb': 'heb',
+            'hin': 'hin_5', 'hrv': 'hrv-hrv', 'hun': 'hun-2005', 'ike':
+            'ike', 'ikt': 'ikt', 'ind': 'ind-terjemahanbaru', 'isl':
+            'isl', 'ita': 'ita-diodati', 'jpn_tok': 'jpn_tok', 'kal': 'kal',
+            'kan': 'kan', 'kek': 'kek-1988', 'kjb': 'kjb-kjb', 'kor': 'kor',
+            'lat': 'lat-novavulgata', 'lit': 'lit-lit', 'mah': 'mah-mah',
+            'mal': 'mal-malirv', 'mam': 'mam-northern', 'mar': 'mar-marirv',
+            'mri': 'mri-mri', 'mya': 'mya-mya', 'nch': 'nch', 'nep': 'nep',
+            'nhe': 'nhe', 'nld': 'nld-nld', 'nor': 'nor-student',
+            'pck': 'pck', 'pes': 'pes', 'plt': 'plt-romancatholic', 'poh': 'poh-eastern',
+            'pol': 'pol-ubg', 'por': 'por-almeidaatualizada', 'qub': 'qub-qub', 'quh':
+            'quh-1993', 'quy': 'quy-quy', 'quz': 'quz-quz', 'ron': 'ron-cornilescu',
+            'rus': 'rus-synodal', 'slk': 'slk', 'slv': 'slv', 'sna': 'sna-sna2002',
+            'som': 'som-som', 'spa': 'spa-gug', 'swe': 'swe', 'tbz': 'tbz-tbz',
+            'tel': 'tel-tel', 'tgl': 'tgl-1905', 'tha_tok': 'tha_tok', 'tob': 'tob',
+            'tpi': 'tpi-tpi', 'tpm': 'tpm-tpm', 'tur': 'tur', 'ukr': 'ukr-2009',
+            'vie': 'vie-2002', 'wal': 'wal-wal', 'wbm': 'wbm-wbm', 'xho': 'xho-xho',
+            'zom': 'zom-zom'}
+
+
+
 def add_punctuation_to_decoded(decoded_texts, punctuation="."):
     processed_texts = []
     for text in decoded_texts:
@@ -25,6 +59,15 @@ def adding_punctuation_to_tokenization(samples, tokenizer, max_length):
     return retokenized_batch
 
 
+def pairwise_cosine(m1, m2=None, eps=1e-6):
+    if m2 is None:
+        m2 = m1
+    w1 = m1.norm(p=2, dim=1, keepdim=True)
+    w2 = m2.norm(p=2, dim=1, keepdim=True)
+
+    return torch.mm(m1, m2.t()) / (w1 * w2.t()).clamp(eps)
+
+
 def get_device():
     """Determine the best available device for macOS"""
     if torch.cuda.is_available():
@@ -37,16 +80,16 @@ def sinkhorn(b, a, C, reg=1e-1, method='sinkhorn', maxIter=1000,
              stopThr=1e-9, verbose=False, log=True, warm_start=None, eval_freq=10, print_freq=200, **kwargs):
     if method.lower() == 'sinkhorn':
         # Changed to the batch version
-        return sinkhorn_knopp_batched(
-                a, b, C, reg, maxIter=maxIter, stopThr=stopThr,
-                verbose=verbose, log=log, warm_start=warm_start,
-                eval_freq=eval_freq, print_freq=print_freq, **kwargs
-            )
+        # return sinkhorn_knopp_batched(
+        #         a, b, C, reg, maxIter=maxIter, stopThr=stopThr,
+        #         verbose=verbose, log=log, warm_start=warm_start,
+        #         eval_freq=eval_freq, print_freq=print_freq, **kwargs
+        #     )
 
-        # return sinkhorn_knopp(a, b, C, reg, maxIter=maxIter,
-        #                       stopThr=stopThr, verbose=verbose, log=log,
-        #                       warm_start=warm_start, eval_freq=eval_freq, print_freq=print_freq,
-        #                       **kwargs)
+        return sinkhorn_knopp(a, b, C, reg, maxIter=maxIter,
+                              stopThr=stopThr, verbose=verbose, log=log,
+                              warm_start=warm_start, eval_freq=eval_freq, print_freq=print_freq,
+                              **kwargs)
     else:
         raise ValueError("Unknown method '%s'." % method)
 

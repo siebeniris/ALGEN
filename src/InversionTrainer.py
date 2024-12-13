@@ -9,7 +9,6 @@ from nltk.translate.bleu_score import corpus_bleu
 from rouge_score import rouge_scorer
 from typing import List, Dict
 import os
-import datetime
 from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
 
@@ -31,22 +30,22 @@ def in_debug_mode():
 class EmbeddingInverterTrainer:
     def __init__(
             self,
-            model_G_name: str = "google/flan-t5-small",
-            model_S_name: str = "t5-base",
+            model_G_name: str = "google/flan-t5-small",  # t5-small
+            model_S_name: str = "t5-base", # "intfloat/multilingual-e5-small"
             save_dir: str = "checkpoints",
             checkpoint_path: str = None,
             resume_training: bool = False,
             use_wandb: bool = True,
             align_method: str = "ot",
             learning_rate: float = 1e-4,
-            batch_size: int = 1,
+            batch_size: int = 64,
             num_epochs: int = 100,
             max_length: int = 32,
             decoding_strategy: str = "beam",
             dataset_name: str = "Morphology",
             language_script: str = "eng_Latn",
             train_samples: int = 1000,
-            eval_samples: int = 300,
+            eval_samples: int = 200,
     ):
         self.align_method = align_method
         self.learning_rate = learning_rate
@@ -98,7 +97,7 @@ class EmbeddingInverterTrainer:
         self.cos_loss = CosineEmbeddingLoss()
         self.rouge_scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
-        # todo : put all the arguments into config.
+
         if use_wandb:
             wandb.init(
                 project=f"embedding-inverter-{self.align_method}-{self.num_epochs}",
@@ -427,19 +426,19 @@ class EmbeddingInverterTrainer:
         x_ = x_.view(test_batch_size, test_seq_len, x_.shape[-1])
         return cossim, x_
 
-    def inversion_normal_function(self, train_data, test_data):
+    def inversion_normal_function(self, X, Y, X_test, Y_test):
         # align the embeddings from X to Y first
-        X, X_attention_mask = self.model.get_embeddings_S(train_data)
-        Y, Y_attention_mask, Y_gold_text = self.model.get_embeddings_G_and_ground_truth(train_data)
-
-        X_test, X_test_attention_mask = self.model.get_embeddings_S(test_data)
-        Y_test, Y_test_attention_mask, Y_test_gold_text = self.model.get_embeddings_G_and_ground_truth(test_data)
+        # X, X_attention_mask = self.model.get_embeddings_S(train_data)
+        # Y, Y_attention_mask, Y_gold_text = self.model.get_embeddings_G_and_ground_truth(train_data)
+        #
+        # X_test, X_test_attention_mask = self.model.get_embeddings_S(test_data)
+        # Y_test, Y_test_attention_mask, Y_test_gold_text = self.model.get_embeddings_G_and_ground_truth(test_data)
 
         # align X to Y
         X_Y_COSSIM, X_aligned, T = self.mapping_X_to_Y(X, Y)
         x_y_test_cossim, x_test_aligned = self.test_alignment(X_test, Y_test, T)
-        return (X_aligned, Y, Y_attention_mask, Y_gold_text,
-                x_test_aligned, Y_test, Y_test_attention_mask, Y_test_gold_text,
+        return (X_aligned,
+                x_test_aligned,
                 X_Y_COSSIM, x_y_test_cossim)
 
     def train(self):
@@ -459,15 +458,28 @@ class EmbeddingInverterTrainer:
             train_texts = all_texts[:1000]
             eval_texts = all_texts[1000:]
 
-        (X_aligned, Y, Y_attention_mask, Y_gold_text,
-         x_test_aligned, Y_test, Y_test_attention_mask, Y_test_gold_text,
-         X_Y_COSSIM, x_y_test_cossim) = self.inversion_normal_function(train_texts, eval_texts)
+        X, X_attention_mask = self.model.get_embeddings_S(train_texts)
+        Y, Y_attention_mask, Y_gold_text = self.model.get_embeddings_G_and_ground_truth(train_texts)
 
-        # print(X_Y_COSSIM, x_y_test_cossim)
-        # print(X_aligned.shape, Y.shape, x_test_aligned.shape, Y_test.shape, )
+        X_test, X_test_attention_mask = self.model.get_embeddings_S(eval_texts)
+        Y_test, Y_test_attention_mask, Y_test_gold_text = self.model.get_embeddings_G_and_ground_truth(eval_texts)
 
-        train_dataset = EmbeddingDataset(X_aligned, Y, Y_attention_mask, Y_gold_text)
-        eval_dataset = EmbeddingDataset(x_test_aligned, Y_test, Y_test_attention_mask, Y_test_gold_text)
+        if self.align_method == "normal+ot":
+            (X_aligned,
+             x_test_aligned,
+             X_Y_COSSIM, x_y_test_cossim) = self.inversion_normal_function(X, Y, X_test, Y_test)
+
+            print(X_Y_COSSIM, x_y_test_cossim)
+            print(X_aligned.shape, Y.shape, x_test_aligned.shape, Y_test.shape, )
+
+            train_dataset = EmbeddingDataset(X_aligned, Y, Y_attention_mask, Y_gold_text)
+            eval_dataset = EmbeddingDataset(x_test_aligned, Y_test, Y_test_attention_mask, Y_test_gold_text)
+
+        else:
+            print("Using not aligned X directly")
+            train_dataset = EmbeddingDataset(X, Y, Y_attention_mask, Y_gold_text)
+            eval_dataset = EmbeddingDataset(X_test, Y_test, Y_test_attention_mask, Y_test_gold_text)
+
 
         ################# align embeddings.
 

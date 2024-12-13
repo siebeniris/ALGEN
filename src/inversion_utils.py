@@ -1,0 +1,150 @@
+import torch
+from transformers.modeling_outputs import BaseModelOutput
+from transformers import T5ForConditionalGeneration, AutoModel, AutoTokenizer
+from torch.nn import LayerNorm
+import transformers.models.t5.modeling_t5 as t5_modeling
+
+t5_modeling.T5LayerNorm = LayerNorm
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+# set up rouge scores
+
+cos = torch.nn.CosineSimilarity(dim=1)
+
+
+def decode_embeddings(embeddings,
+                      attention_mask,
+                      model_G, tokenizer_G,
+                      num_beams=3,
+                      do_sample=False,
+                      repetition_penalty=2.0,
+                      length_penalty=2.0,
+                      top_k=None, top_p=None, temperature=None,
+                      decoder_input_ids=None, max_length=32):
+    """Decode embeddings back to text."""
+    with torch.no_grad():
+        embeddings = embeddings.to(torch.float32)
+        batch_size, seq_length, hidden_size = embeddings.size()
+        print(f"embeddings mean: {embeddings.mean().item()}, std: {embeddings.std().item()}")
+
+        if attention_mask == None:
+            print(f"all ones for attention_mask")
+            attention_mask = torch.ones(batch_size, seq_length, dtype=torch.long, device=embeddings.device)
+
+        if embeddings.size(0) == 0 or attention_mask.size(0) == 0:
+            print("Error: Empty embeddings or attention mask.")
+            return ["Error during generation: Empty input"] * batch_size
+
+        # Create encoder outputs
+        # wrap embeddings in BaseModelOutput to simulate encoder outputs
+        encoder_outputs = BaseModelOutput(last_hidden_state=embeddings)
+        print(f"Encoder outputs last_hidden_state shape: {encoder_outputs.last_hidden_state.shape}")
+        # Initialize decoder input IDs
+        if decoder_input_ids == None:
+            print("creating decoder_input_ids:")
+            decoder_input_ids = torch.full(
+                (batch_size, 1),
+                1,  # tokenizer_G.eos_token_id, # start decoding with the EOS,
+                dtype=torch.long,
+                device=device
+            )
+        print("decoder input_ids:", decoder_input_ids.shape)
+        assert embeddings.size(0) == decoder_input_ids.size(0), "Decoder input batch size mismatch!"
+
+        try:
+            # Generate output
+            generated = model_G.generate(
+                encoder_outputs=encoder_outputs,
+                attention_mask=attention_mask,
+                decoder_input_ids=decoder_input_ids,  # initialized with [1], eos for the whole batch.
+                max_length=max_length + 10,
+                num_beams=num_beams,  # Increased beam size
+                do_sample=do_sample,
+                repetition_penalty=repetition_penalty,
+                length_penalty=length_penalty,
+                top_k=top_k,
+                top_p=top_p,
+                temperature=temperature,
+                early_stopping=True,
+                pad_token_id=tokenizer_G.pad_token_id,
+                eos_token_id=tokenizer_G.eos_token_id,
+            )
+            decoded_text = tokenizer_G.batch_decode(
+                generated, skip_special_tokens=True, clean_up_tokenization_spaces=True
+            )
+
+            decoded_text = [text.strip() for text in decoded_text]
+            # print(f"decoded text:", decoded_text)
+
+        except Exception as e:
+            print(f"Error during generation: {str(e)}")
+            decoded_text = ["Error during generation"] * batch_size
+    return decoded_text
+
+
+def add_punctuation_token_ids(sentence, tokenizer, max_length, punctuations=[".", "?", "!"]):
+    # add punctuation to tokens ids when there is None, improve the decoding results.
+    punct_token_ids = tokenizer.convert_tokens_to_ids(punctuations)
+    eos_id = tokenizer.eos_token_id
+    pad_id = tokenizer.pad_token_id
+    period_token_id = punct_token_ids[0]
+    approved_second_last_token_ids = punct_token_ids + [eos_id, pad_id]
+
+    tokens = tokenizer(sentence, padding="max_length", truncation=True,
+                       max_length=max_length, return_tensors="pt")
+    # get the mask of the second last tokens
+    input_ids = tokens["input_ids"]
+    attention_masks = tokens["attention_mask"]
+    # print(tokens)
+    mask = ~ torch.isin(input_ids[:, -2], torch.tensor(approved_second_last_token_ids))
+    input_ids[mask, -2] = period_token_id
+    return {"input_ids": input_ids, "attention_mask": attention_masks}
+
+
+def fill_in_pad_eos_token(tokenizer):
+    if tokenizer.pad_token is None:
+        tokenizer.add_special_tokens({"pad_token": "<pad>"})
+    if tokenizer.eos_token is None:
+        tokenizer.add_special_tokens({"eos_token": "</s>"})
+    return tokenizer
+
+
+def load_tokenizer_models(source_model_name, target_model_name):
+    # the goal is to align source model to target model.
+    # the target model should be an encoder-decoder model
+    # the source model only need embeddings
+    source_model = AutoModel.from_pretrained(source_model_name)
+    target_model = T5ForConditionalGeneration.from_pretrained(target_model_name)
+
+    source_tokenizer = AutoTokenizer.from_pretrained(source_model_name)
+    target_tokenizer = AutoTokenizer.from_pretrained(target_model_name)
+    fill_in_pad_eos_token(source_tokenizer)
+    fill_in_pad_eos_token(target_tokenizer)
+
+    source_model.resize_token_embeddings(len(source_tokenizer))
+    target_model.resize_token_embeddings(len(target_tokenizer))
+
+    return source_model, target_model, source_tokenizer, target_tokenizer
+
+
+def get_embeddings(train_data, test_data,
+                   source_model, target_model,
+                   source_tokenizer, target_tokenizer,
+                   max_length=32, noise_level=0):
+    X_tokens = add_punctuation_token_ids(train_data, source_tokenizer, max_length)
+    Y_tokens = add_punctuation_token_ids(train_data, target_tokenizer, max_length)
+    X_test_tokens = add_punctuation_token_ids(test_data, source_tokenizer, max_length)
+    Y_test_tokens = add_punctuation_token_ids(test_data, target_tokenizer, max_length)
+
+    with torch.no_grad():
+        X = source_model.encoder(**X_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+        Y = target_model.encoder(**Y_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+        X_test = source_model.encoder(**X_test_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+        Y_test = target_model.encoder(**Y_test_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+
+    if noise_level > 0:
+        X += noise_level * torch.randn(X.shape)
+        X_test += noise_level * torch.rand(X_test.shape)
+    return X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens
+
+

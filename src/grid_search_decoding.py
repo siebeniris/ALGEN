@@ -169,19 +169,19 @@ def load_tokenizer_models(source_model_name, target_model_name):
 def get_embeddings(train_data, test_data,
                    source_model, target_model,
                    source_tokenizer, target_tokenizer, max_length=32):
-    # X_tokens = adding_punctuation_to_tokenization(train_data, source_tokenizer, max_length)
-    # Y_tokens = adding_punctuation_to_tokenization(train_data, target_tokenizer, max_length)
-    # X_test_tokens = adding_punctuation_to_tokenization(test_data, source_tokenizer, max_length)
-    # Y_test_tokens = adding_punctuation_to_tokenization(test_data, target_tokenizer, max_length)
+    X_tokens = adding_punctuation_to_tokenization(train_data, source_tokenizer, max_length)
+    Y_tokens = adding_punctuation_to_tokenization(train_data, target_tokenizer, max_length)
+    X_test_tokens = adding_punctuation_to_tokenization(test_data, source_tokenizer, max_length)
+    Y_test_tokens = adding_punctuation_to_tokenization(test_data, target_tokenizer, max_length)
 
-    X_tokens = source_tokenizer(train_data, padding="max_length", truncation=True,
-                                max_length=max_length, return_tensors="pt")
-    Y_tokens = target_tokenizer(train_data, padding="max_length", truncation=True,
-                                max_length=max_length, return_tensors="pt")
-    X_test_tokens = source_tokenizer(test_data, padding="max_length", truncation=True,
-                                     max_length=max_length, return_tensors="pt")
-    Y_test_tokens = target_tokenizer(test_data, padding="max_length", truncation=True,
-                                     max_length=max_length, return_tensors="pt")
+    # X_tokens = source_tokenizer(train_data, padding="max_length", truncation=True,
+    #                             max_length=max_length, return_tensors="pt")
+    # Y_tokens = target_tokenizer(train_data, padding="max_length", truncation=True,
+    #                             max_length=max_length, return_tensors="pt")
+    # X_test_tokens = source_tokenizer(test_data, padding="max_length", truncation=True,
+    #                                  max_length=max_length, return_tensors="pt")
+    # Y_test_tokens = target_tokenizer(test_data, padding="max_length", truncation=True,
+    #                                  max_length=max_length, return_tensors="pt")
 
     with torch.no_grad():
         X = source_model.encoder(**X_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
@@ -277,7 +277,6 @@ def aligning_and_testing(source_model_name, target_model_name, max_length=32,
 
     outputdir = os.path.join(outputdir,
                              f"{source_model_name.replace("/", "-")}_to_{target_model_name.replace("/", "-")}")
-    outputdir = os.path.join(outputdir, "max_length_42_no_added_punctuations")
     os.makedirs(outputdir, exist_ok=True)
 
     X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens = get_embeddings(

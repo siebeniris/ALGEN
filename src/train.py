@@ -3,8 +3,6 @@ from trainerConfig import (
     TrainerConfig,
     get_default_config,
     get_ot_config,
-    get_neural_config,
-    get_orthogonal_config,
     get_linear_config
 )
 from InversionTrainer import EmbeddingInverterTrainer
@@ -51,10 +49,7 @@ def train_with_config(config: TrainerConfig):
         dataset_name=config.dataset_name,
         language_script=config.language_script,
         train_samples=config.train_samples,
-
     )
-
-
     # Save config before training
     save_config(config, config.save_dir)
 
@@ -85,13 +80,15 @@ def main():
     parser.add_argument("--resume_training", action="store_true", help="Whether to resume training or not True or False")
 
     parser.add_argument('--num_epochs', type=int, default=100, help='Number of training epochs')
-    parser.add_argument('--batch_size', type=int, default=1, help='Batch size for training')
+    parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training')
     parser.add_argument('--learning_rate', type=float, default=1e-4, help='Learning rate for optimizer')
     parser.add_argument('--align_method', type=str, default='ot', help='Alignment method to use')
     parser.add_argument('--train_samples', type=int, default=1000, help='Number of training samples to use')
 
+    parser.add_argument("--target_model", type=str, default="t5-small")  # G-model
+    parser.add_argument("--source_model", type=str, default="intfloat/multilingual-e5-small")  # S-model
+
     parser.add_argument('--use_wandb', action='store_true', help='Enable Weights & Biases logging')
-    parser.add_argument("--")
     args = parser.parse_args()
 
     # Load configuration
@@ -103,8 +100,6 @@ def main():
         configs = {
             'default': get_default_config,
             'ot': get_ot_config,
-            'neural': get_neural_config,
-            'orthogonal': get_orthogonal_config,
             'linear': get_linear_config,
         }
         config = configs[args.config]()
@@ -120,6 +115,8 @@ def main():
     config.use_wandb = args.use_wandb
     config.checkpoint_path = args.checkpoint_path
     config.resume_training = args.resume_training
+    config.model_G_name = args.target_model
+    config.model_S_name = args.source_model
 
 
     # Print configuration
