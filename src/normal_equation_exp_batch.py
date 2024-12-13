@@ -75,8 +75,8 @@ def aligning_and_testing(source_model, target_model,
         json.dump(result_dict, f)
 
     df_output = pd.DataFrame({
-        "X_output": X_test_output,
-        "Y_output": Y_test_output,
+        "X_output": X_test_output.detach().cpu().numpy().tolist(),
+        "Y_output": Y_test_output.detach().cpu().numpy().tolist(),
         "Y_gold": Y_test_gold
     })
 
@@ -84,8 +84,9 @@ def aligning_and_testing(source_model, target_model,
 
 
 def aligning_per_lang_to_flant5(output_dir="results"):
-    lang_data_dir = "/Users/yiyichen/Documents/experiments/datasets/Morphology-Matters-corpus"
-    source_model_names = ["google/flan-t5-base", "google-t5/t5-base", "google/mt5-base",
+    lang_data_dir = "dataset/Morphology-Matters-corpus"
+    source_model_names = ["google/flan-t5-base", "google-t5/t5-base",
+                          "google/mt5-base",
                           "facebook/mbart-large-50"]
     target_model_names = ["google/flan-t5-small", "google/mt5-small"]
     # intialize model names.
@@ -122,11 +123,8 @@ def aligning_per_lang_to_flant5(output_dir="results"):
                     outputfile = os.path.join(outputdir_, "eval_results.json")
                     if not os.path.exists(outputfile):
                         train_data_ = train_data[:train_samples]
-                        aligning_and_testing(source_model, target_model,
-                                             source_tokenizer, target_tokenizer,
-                                             train_data_, test_data,
-                                             outputdir_,
-                                             32,)
+                        aligning_and_testing(source_model, target_model, source_tokenizer, target_tokenizer,
+                                             train_data_, test_data,  outputdir_, 32,)
                     else:
                         print(f"{outputdir_} exits")
 
