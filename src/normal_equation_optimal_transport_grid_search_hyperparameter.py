@@ -36,8 +36,10 @@ def get_eval_results(X_aligned, Y, X_Y_cossim,
     X_Y_test_cosloss, X_Y_test_mseloss = loss_metrics(X_test_aligned, Y_test)
 
     cosine_similarity_metrics = {
-        "X_Y_COS": X_Y_cossim.detach().cpu().numpy().tolist(), # json dump format.
-        "X_Y_test_COS": X_Y_TEST_COSSIM.detach().cpu().numpy().tolist(),
+        "X_Y_COS": X_Y_cossim.tolist() if isinstance(X_Y_cossim, np.ndarray)
+                    else X_Y_cossim.detach().cpu().numpy().tolist(), # json dump format.
+        "X_Y_test_COS": X_Y_TEST_COSSIM.tolist() if isinstance(X_Y_TEST_COSSIM, np.ndarray)
+                    else X_Y_TEST_COSSIM.detach().cpu().numpy().tolist(),
         "X_Y_COS_LOSS": X_Y_cosloss.item(),
         "X_Y_MSE_LOSS": X_Y_mseloss.item(),
         "X_Y_test_COS_LOSS": X_Y_test_cosloss.item(),
@@ -114,9 +116,9 @@ def aligning_and_testing(source_model, target_model,
             for reg_m in np.round(np.arange(0.001, 0.01, 0.001), 3):
                 print(f"testing ot with reg: {reg} and reg_m: {reg_m} ...")
                 X_Y_COS, Xs_aligned, Ts = optimal_transport_align(Xs, Y,
-                                                                device,
-                                                                reg=reg, reg_m=reg_m,
-                                                                ot_strategy='ub_sinkhorn')
+                                                                  device,
+                                                                  reg=reg, reg_m=reg_m,
+                                                                  ot_strategy='ub_sinkhorn')
                 T = Ts.mean(axis=0)
 
                 x_y_test_cos, x_test_aligned_ot = optimal_transport_align_test(X_test_aligned, Y_test, T)
