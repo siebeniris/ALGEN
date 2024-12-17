@@ -1,6 +1,6 @@
 import torch
 from transformers.modeling_outputs import BaseModelOutput
-from transformers import T5ForConditionalGeneration, AutoModel, AutoTokenizer, AutoConfig
+from transformers import T5ForConditionalGeneration, AutoModel, AutoTokenizer
 from torch.nn import LayerNorm
 import transformers.models.t5.modeling_t5 as t5_modeling
 

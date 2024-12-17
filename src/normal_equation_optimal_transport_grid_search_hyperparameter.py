@@ -165,7 +165,7 @@ def aligning_per_lang(output_dir="results_sinkhorn"):
             with open(os.path.join(lang_data_dir_, "test.txt")) as f:
                 test_data = [x.replace("\n", "") for x in f.readlines()][:200]
 
-            source_model, target_model, source_tokenizer, target_tokenizer \
+            source_model, target_model, _, _, source_tokenizer, target_tokenizer \
                 = load_tokenizer_models(source_model_name, target_model_name)
 
             for train_samples in [100, 500, 1000]:
