@@ -1,6 +1,6 @@
 import torch
 from transformers.modeling_outputs import BaseModelOutput
-from transformers import T5ForConditionalGeneration, AutoModel, AutoTokenizer
+from transformers import T5ForConditionalGeneration, AutoModel, AutoTokenizer, AutoConfig
 from torch.nn import LayerNorm
 import transformers.models.t5.modeling_t5 as t5_modeling
 
@@ -36,9 +36,9 @@ def decode_embeddings(embeddings,
             return ["Error during generation: Empty input"] * batch_size
 
         # Create encoder outputs
-        # wrap embeddings in BaseModelOutput to simulate encoder outputs
+        # Wrap embeddings in BaseModelOutput to simulate encoder outputs
         encoder_outputs = BaseModelOutput(last_hidden_state=embeddings)
-        print(f"Encoder outputs last_hidden_state shape: {encoder_outputs.last_hidden_state.shape}")
+        # print(f"Encoder outputs last_hidden_state shape: {encoder_outputs.last_hidden_state.shape}")
         # Initialize decoder input IDs
         if decoder_input_ids == None:
             print("creating decoder_input_ids:")
@@ -116,6 +116,9 @@ def load_tokenizer_models(source_model_name, target_model_name):
     source_model = AutoModel.from_pretrained(source_model_name)
     target_model = T5ForConditionalGeneration.from_pretrained(target_model_name)
 
+    source_hidden_dim = source_model.config.hidden_size
+    target_hidden_dim = target_model.config.hidden_size
+
     source_tokenizer = AutoTokenizer.from_pretrained(source_model_name)
     target_tokenizer = AutoTokenizer.from_pretrained(target_model_name)
     fill_in_pad_eos_token(source_tokenizer)
@@ -127,7 +130,9 @@ def load_tokenizer_models(source_model_name, target_model_name):
     source_model = source_model.to(device)
     target_model = target_model.to(device)
 
-    return source_model, target_model, source_tokenizer, target_tokenizer
+    return (source_model, target_model,
+            source_hidden_dim, target_hidden_dim,
+            source_tokenizer, target_tokenizer)
 
 
 def get_embeddings(train_data, test_data,
@@ -140,9 +145,15 @@ def get_embeddings(train_data, test_data,
     Y_test_tokens = add_punctuation_token_ids(test_data, target_tokenizer, max_length)
 
     with torch.no_grad():
-        X = source_model.encoder(**X_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+        if source_model.config.is_encoder_decoder:
+            print("source model is encoder_decoder")
+            X = source_model.encoder(**X_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+            X_test = source_model.encoder(**X_test_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+        else:
+            print("source model is not a encoder_decoder")
+            X = source_model(**X_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+            X_test = source_model(**X_test_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
         Y = target_model.encoder(**Y_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
-        X_test = source_model.encoder(**X_test_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
         Y_test = target_model.encoder(**Y_test_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
 
     if noise_level > 0:

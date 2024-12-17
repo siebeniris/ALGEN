@@ -1,12 +1,16 @@
 from collections import defaultdict
 
 import numpy as np
+import torch
+from torch.nn import MSELoss, CosineEmbeddingLoss
 from rouge_score import rouge_scorer
 
 from inversion_utils import decode_embeddings
 
 
 rouge_scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+mse_loss = MSELoss()
+cos_loss = CosineEmbeddingLoss()
 
 
 def get_rouge_scores(pred, target):
@@ -16,6 +20,18 @@ def get_rouge_scores(pred, target):
         for metric, score in scores.items():
             metrics_test[f"{metric}_f"].append(score.fmeasure)
     return metrics_test
+
+
+def loss_metrics(X, Y):
+    X_reshape= X.view(-1, X.size(-1))
+    Y_reshape= Y.view(-1, Y.size(-1))
+    batch_seq_len = Y_reshape.shape[0]
+    device = X.device
+    target = torch.ones(batch_seq_len).to(device)
+
+    cosloss = cos_loss(X_reshape, Y_reshape, target)
+    mseloss = mse_loss(X, Y)
+    return cosloss, mseloss
 
 
 def eval_decoding(X_test_aligned, Y_test, Y_test_gold_texts, Y_test_mask, target_model, target_tokenizer,

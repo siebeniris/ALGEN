@@ -16,7 +16,14 @@ from InversionModel import EmbeddingInverter
 from create_dataset import EmbeddingDataset, custom_collate_fn
 from data_helper import load_data
 
-from utils import get_device
+from inversion_utils import (
+    load_tokenizer_models,
+    get_embeddings,
+)
+from AlignerOT import TokenAlignerOT
+from inversion_methods import mapping_X_to_Y, test_alignment
+from eval_metrics import eval_decoding
+from utils import get_device, pairwise_cosine
 
 
 def in_debug_mode():
@@ -31,7 +38,7 @@ class EmbeddingInverterTrainer:
     def __init__(
             self,
             model_G_name: str = "google/flan-t5-small",  # t5-small
-            model_S_name: str = "t5-base", # "intfloat/multilingual-e5-small"
+            model_S_name: str = "google/mt5-base",  # "intfloat/multilingual-e5-small"
             save_dir: str = "checkpoints",
             checkpoint_path: str = None,
             resume_training: bool = False,
@@ -63,20 +70,27 @@ class EmbeddingInverterTrainer:
         self.train_samples = train_samples
         self.eval_samples = eval_samples
 
-        self.model_G_name = model_G_name
-        self.model_S_name = model_S_name
-
         # Initialize model
-        self.model = EmbeddingInverter(
-            model_G_name_or_path=model_G_name,
-            model_S_name_or_path=model_S_name,
-            max_length=max_length,
-            align_method=align_method,
-            decoding_strategy=decoding_strategy,
-        )
+        # self.model = EmbeddingInverter(
+        #     model_G_name_or_path=model_G_name,
+        #     model_S_name_or_path=model_S_name,
+        #     max_length=max_length,
+        #     align_method=align_method,
+        #     decoding_strategy=decoding_strategy,
+        # )
+
+        (self.source_model, self.target_model,
+         self.source_hidden_dim, self.target_hidden_dim,
+         self.source_tokenizer, self.target_tokenizer) \
+            = load_tokenizer_models(self.model_S_name, self.model_G_name)
 
         self.num_workers = 2
         self.device = get_device()
+
+        if self.align_method == "normal+ot":
+            self.aligner = TokenAlignerOT(self.source_hidden_dim, self.target_hidden_dim, self.device)
+
+
         # get the checkpoint_dir.
         output_dir = f"{self.align_method}_epochs{self.num_epochs}_train{self.train_samples}_lr{self.learning_rate}_bs{self.batch_size}"
         self.checkpoint_dir = os.path.join(self.save_dir, output_dir)
@@ -90,27 +104,24 @@ class EmbeddingInverterTrainer:
             self.load_checkpoint(checkpoint_path, resume_training)
         else:
             # Initialize optimizer if not loading from checkpoint
-            self.optimizer = AdamW(self.model.aligner.parameters(), lr=learning_rate)
+            self.optimizer = AdamW(self.aligner.parameters(), lr=learning_rate)
 
         # Initialize losses
         self.mse_loss = MSELoss()
         self.cos_loss = CosineEmbeddingLoss()
         self.rouge_scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
-
         if use_wandb:
             wandb.init(
                 project=f"embedding-inverter-{self.align_method}-{self.num_epochs}",
                 config={
-                    "model_g": model_G_name,
-                    "model_s": model_S_name,
+                    'model_G_name': self.model_G_name,
+                    'model_S_name': self.model_S_name,
                     'align_method': self.align_method,
                     'learning_rate': self.learning_rate,
                     'batch_size': self.batch_size,
                     'num_epochs': self.num_epochs,
                     'max_length': self.max_length,
-                    'model_G_name': self.model_G_name,
-                    'model_S_name': self.model_S_name,
                     "save_dir": self.save_dir,
                     "checkpoint_path": self.checkpoint_path,
                     'decoding_strategy': self.decoding_strategy
@@ -170,7 +181,8 @@ class EmbeddingInverterTrainer:
 
         return metrics
 
-    def compute_embedding_similarity(self, aligned_embeddings: torch.Tensor, target_embeddings: torch.Tensor,
+    def compute_embedding_similarity(self, aligned_embeddings: torch.Tensor,
+                                     target_embeddings: torch.Tensor,
                                      attention_mask: torch.Tensor = None) -> Dict[str, float]:
         """Compute embedding space similarity metrics"""
         # Convert to numpy for sklearn cosine similarity
@@ -206,8 +218,8 @@ class EmbeddingInverterTrainer:
 
         # Forward pass
         # batch = batch.to(self.device)
-        aligned_embeddings = self.model(batch)
-
+        aligned_embeddings = self.aligner(batch)
+        # TODO: change the shape?
         # reshape to [batch_size*seq_len, hidden_dim] for evaluating cos_loss.
         aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
         target_embeddings_reshaped = batch["Y"].view(-1, batch["Y"].size(-1))
@@ -238,7 +250,7 @@ class EmbeddingInverterTrainer:
 
     def evaluate(self, eval_dataloader: DataLoader) -> Dict[str, float]:
         """Evaluate the model"""
-        self.model.eval()
+        self.aligner.eval()
         all_metrics = defaultdict(list)
         all_texts = []
         all_decoded_texts = []
@@ -247,8 +259,9 @@ class EmbeddingInverterTrainer:
         with torch.no_grad():
             for batch in tqdm(eval_dataloader, desc="Evaluating"):
                 # Get aligned embeddings and decoded text
-                aligned_embeddings = self.model(batch)
+                aligned_embeddings = self.aligner(batch)
                 # might need to change later when tokenizers aren't the same.
+                # decoded_texts_X =
                 decoded_texts_X = self.model.decode_embeddings(aligned_embeddings, batch["Y_attention_mask"])
                 decoded_texts_Y = self.model.decode_embeddings(batch["Y"], batch["Y_attention_mask"])
                 print("aligned embedding and original: ", aligned_embeddings.shape, batch["Y"].shape)
@@ -457,6 +470,10 @@ class EmbeddingInverterTrainer:
         else:
             train_texts = all_texts[:1000]
             eval_texts = all_texts[1000:]
+
+        X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens = \
+            get_embeddings(train_texts, eval_texts, self.source_model, self.target_model,
+                           self.source_tokenizer, self.target_tokenizer, self.max_length)
 
         X, X_attention_mask = self.model.get_embeddings_S(train_texts)
         Y, Y_attention_mask, Y_gold_text = self.model.get_embeddings_G_and_ground_truth(train_texts)

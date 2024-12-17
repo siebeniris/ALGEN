@@ -10,6 +10,7 @@ import yaml
 import os
 import torch
 
+
 def save_config(config: TrainerConfig, save_dir: str):
     """Save configuration to YAML file"""
     os.makedirs(save_dir, exist_ok=True)

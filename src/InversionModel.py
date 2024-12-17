@@ -4,16 +4,13 @@ from transformers import T5ForConditionalGeneration, AutoModel, AutoTokenizer
 
 from torch.nn import LayerNorm
 import transformers.models.t5.modeling_t5 as t5_modeling
-
 t5_modeling.T5LayerNorm = LayerNorm
-
 from utils import get_device, adding_punctuation_to_tokenization
 from alignment_models import LinearAligner
 from embeddingAlingerOT import AlignerOT
 
-
 ###################################################################################################
-### limitation of this inversionmodel: only works on the embeddings with the same tokenizers.
+### limitation of this inversion model: only works on the embeddings with the same tokenizers.
 
 
 class EmbeddingInverter(torch.nn.Module):
@@ -122,7 +119,6 @@ class EmbeddingInverter(torch.nn.Module):
         ground_truth_text = [self.tokenizer_G.decode(tb, skip_special_tokens=True) for tb in inputs["input_ids"]]
 
         return embeddings, inputs["attention_mask"], ground_truth_text
-
 
     def decode_embeddings(self, embeddings, attention_mask=None):
         """Decode embeddings back to text."""
