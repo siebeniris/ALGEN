@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from torch.nn import LayerNorm
 import transformers.models.t5.modeling_t5 as t5_modeling
-import yaml
 from inversion_utils import (
     load_tokenizer_models,
     get_embeddings,
@@ -70,8 +69,6 @@ def get_eval_results(X_aligned, Y, X_Y_cossim,
     outputfile = os.path.join(outputdir, f"{exp_name}_eval_results.json")
     with open(outputfile, "w+") as f:
         json.dump(result_dict, f)
-    # with open(outputfile, "w") as f:
-    #     yaml.dump(result_dict, f)
 
     df_output = pd.DataFrame({
         "X_output": X_test_output,
@@ -118,24 +115,28 @@ def aligning_and_testing(source_model, target_model,
     print("Implementing Optimal Transport on Token Level...")
     ot_strategy = "ub_sinkhorn"
     if ot and grid_search:
-        for reg in np.round(np.arange(0.02, 0.1, 0.01), 3):
-            for reg_m in np.round(np.arange(0.001, 0.01, 0.001), 3):
+        for reg in np.round(np.arange(0.02, 0.11, 0.01), 3):
+            for reg_m in np.round(np.arange(0.001, 0.011, 0.001), 3):
+                # TODO: include 0.1 and 0.01
                 print(f"testing ot with reg: {reg} and reg_m: {reg_m} ...")
-                X_Y_COS, Xs_aligned, Ts = optimal_transport_align(Xs, Y,
-                                                                  device,
-                                                                  reg=reg, reg_m=reg_m,
-                                                                  ot_strategy='ub_sinkhorn')
-                T = Ts.mean(axis=0)
-
-                x_y_test_cos, x_test_aligned_ot = optimal_transport_align_test(X_test_aligned, Y_test, T)
                 exp_name = (f"{ot_strategy}_reg{reg}_regm{reg_m}")
-                get_eval_results(Xs_aligned, Y, X_Y_COS,
-                                 x_test_aligned_ot, Y_test, x_y_test_cos,
-                                 Y_test_tokens, Y_test_gold,
-                                 target_model, target_tokenizer,
-                                 exp_name,
-                                 max_length, outputdir
-                                 )
+                outputfile = os.path.join(outputdir, f"{exp_name}_eval_results.json")
+                if not os.path.exists(outputfile):
+                    X_Y_COS, Xs_aligned, Ts = optimal_transport_align(Xs, Y,
+                                                                      device,
+                                                                      reg=reg, reg_m=reg_m,
+                                                                      ot_strategy='ub_sinkhorn')
+                    T = Ts.mean(axis=0)
+
+                    x_y_test_cos, x_test_aligned_ot = optimal_transport_align_test(X_test_aligned, Y_test, T)
+                    exp_name = (f"{ot_strategy}_reg{reg}_regm{reg_m}")
+                    get_eval_results(Xs_aligned, Y, X_Y_COS,
+                                     x_test_aligned_ot, Y_test, x_y_test_cos,
+                                     Y_test_tokens, Y_test_gold,
+                                     target_model, target_tokenizer,
+                                     exp_name,
+                                     max_length, outputdir
+                                     )
 
 
 def aligning_per_lang(output_dir="results_sinkhorn"):
