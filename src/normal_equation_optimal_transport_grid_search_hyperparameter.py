@@ -35,11 +35,15 @@ def get_eval_results(X_aligned, Y, X_Y_cossim,
     X_Y_cosloss, X_Y_mseloss = loss_metrics(X_aligned, Y)
     X_Y_test_cosloss, X_Y_test_mseloss = loss_metrics(X_test_aligned, Y_test)
 
+    X_Y_COS = X_Y_cossim.detach().cpu().numpy().tolist() if torch.is_tensor(X_Y_cossim) else (
+        X_Y_cossim.tolist() if isinstance(X_Y_cossim, np.ndarray) else float(X_Y_cossim))
+
+    X_Y_test_COS = X_Y_TEST_COSSIM.detach().cpu().numpy().tolist() if torch.is_tensor(X_Y_TEST_COSSIM) else (
+        X_Y_TEST_COSSIM.tolist() if isinstance(X_Y_TEST_COSSIM, np.ndarray) else float(X_Y_TEST_COSSIM))
+
     cosine_similarity_metrics = {
-        "X_Y_COS": X_Y_cossim.tolist() if isinstance(X_Y_cossim, np.ndarray)
-                    else X_Y_cossim.detach().cpu().numpy().tolist(), # json dump format.
-        "X_Y_test_COS": X_Y_TEST_COSSIM.tolist() if isinstance(X_Y_TEST_COSSIM, np.ndarray)
-                    else X_Y_TEST_COSSIM.detach().cpu().numpy().tolist(),
+        "X_Y_COS": X_Y_COS,
+        "X_Y_test_COS": X_Y_test_COS,
         "X_Y_COS_LOSS": X_Y_cosloss.item(),
         "X_Y_MSE_LOSS": X_Y_mseloss.item(),
         "X_Y_test_COS_LOSS": X_Y_test_cosloss.item(),
