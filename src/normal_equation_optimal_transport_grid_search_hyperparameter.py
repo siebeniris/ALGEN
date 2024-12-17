@@ -68,10 +68,10 @@ def get_eval_results(X_aligned, Y, X_Y_cossim,
         "rouge_results": rouge_result_dict
     }
     outputfile = os.path.join(outputdir, f"{exp_name}_eval_results.json")
-    # with open(outputfile, "w+") as f:
-    #     json.dump(result_dict, f)
-    with open(outputfile, "w") as f:
-        yaml.dump(result_dict, f)
+    with open(outputfile, "w+") as f:
+        json.dump(result_dict, f)
+    # with open(outputfile, "w") as f:
+    #     yaml.dump(result_dict, f)
 
     df_output = pd.DataFrame({
         "X_output": X_test_output,
