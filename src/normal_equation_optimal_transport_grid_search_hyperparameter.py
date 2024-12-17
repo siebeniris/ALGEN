@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.nn import LayerNorm
 import transformers.models.t5.modeling_t5 as t5_modeling
-
+import yaml
 from inversion_utils import (
     load_tokenizer_models,
     get_embeddings,
@@ -26,12 +26,12 @@ lang2files = get_lang_file_dict()
 
 
 def get_eval_results(X_aligned, Y, X_Y_cossim,
-                     X_test_aligned, Y_test, X_Y_TEST_COSSIM,
-                     Y_test_tokens, Y_test_gold,
-                     target_model, target_tokenizer,
-                     exp_name,
-                     max_length, outputdir
-                     ):
+                    X_test_aligned, Y_test, X_Y_TEST_COSSIM,
+                    Y_test_tokens, Y_test_gold,
+                    target_model, target_tokenizer,
+                    exp_name,
+                    max_length, outputdir
+                    ):
     X_Y_cosloss, X_Y_mseloss = loss_metrics(X_aligned, Y)
     X_Y_test_cosloss, X_Y_test_mseloss = loss_metrics(X_test_aligned, Y_test)
 
@@ -68,8 +68,10 @@ def get_eval_results(X_aligned, Y, X_Y_cossim,
         "rouge_results": rouge_result_dict
     }
     outputfile = os.path.join(outputdir, f"{exp_name}_eval_results.json")
-    with open(outputfile, "w+") as f:
-        json.dump(result_dict, f)
+    # with open(outputfile, "w+") as f:
+    #     json.dump(result_dict, f)
+    with open(outputfile, "w") as f:
+        yaml.dump(result_dict, f)
 
     df_output = pd.DataFrame({
         "X_output": X_test_output,
@@ -81,12 +83,12 @@ def get_eval_results(X_aligned, Y, X_Y_cossim,
 
 
 def aligning_and_testing(source_model, target_model,
-                         source_tokenizer, target_tokenizer,
-                         train_data, test_data,
-                         outputdir,
-                         ot=True,
-                         grid_search=True,
-                         max_length=32):
+                        source_tokenizer, target_tokenizer,
+                        train_data, test_data,
+                        outputdir,
+                        ot=True,
+                        grid_search=True,
+                        max_length=32):
     # if not os.path.exists(outputfile):
     X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens \
         = get_embeddings(
