@@ -4,7 +4,7 @@ import re
 
 import pandas as pd
 import plac
-
+from tqdm import tqdm
 
 data = {
     "cosine_similarities": {
@@ -63,14 +63,15 @@ def get_one_row(filename, data_dir, train_samples):
         flattend["reg"] = reg_value
         flattend["regm"] = regm_value
         flattend["train"] = train_samples
-        return pd.DataFrame(flattend)
+        return pd.DataFrame([flattend])
     else:
         print("no regm and reg found")
+
 
 def get_result_for_one_model(data_dir):
 
     rows = []
-    for subdir in os.listdir(data_dir):
+    for subdir in tqdm(os.listdir(data_dir)):
 
         dirpath = os.path.join(data_dir, subdir)
         if os.path.isdir(dirpath):
@@ -83,6 +84,8 @@ def get_result_for_one_model(data_dir):
                         row = get_one_row(filename, dirpath, samples_number)
                         rows.append(row)
     df = pd.concat(rows, axis=0, ignore_index=True)
+
+    print(f"writing the results {len(rows)}")
 
     df.to_csv(f"{data_dir}/results.csv",index=False)
 
