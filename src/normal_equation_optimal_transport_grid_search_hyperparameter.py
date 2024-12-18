@@ -139,16 +139,17 @@ def aligning_and_testing(source_model, target_model,
                                      )
 
 
-def aligning_per_lang(output_dir="results_sinkhorn"):
+def aligning_per_lang(source_model_name, output_dir="results_sinkhorn"):
     lang_data_dir = "dataset/Morphology-Matters-corpus"
-    source_model_names = [
-        "sentence-transformers/gtr-t5-base",
-        "intfloat/multilingual-e5-base"
-        "google/flan-t5-base",
-        "google-t5/t5-base",
-        "google/mt5-base",
-        "google-bert/bert-base-multilingual-cased"
-    ]
+    # source_model_names = [
+    #     "sentence-transformers/gtr-t5-base",
+    #     "intfloat/multilingual-e5-base"
+    #     "google/flan-t5-base",
+    #     "google-t5/t5-base",
+    #     "google/mt5-base",
+    #     "google-bert/bert-base-multilingual-cased"
+    # ]
+    source_model_names = [source_model_name]
     target_model_names = ["google/flan-t5-small", "google/mt5-small"]
 
     # intialize model names.
