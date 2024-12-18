@@ -1,13 +1,14 @@
 #!/bin/bash -e
 
-#SBATCH --job-name=fewshot
-#SBATCH --output=fewshot_%j.out
-#SBATCH --error=fewshot_%j.err
+#SBATCH --job-name=sinkhorn
+#SBATCH --output=sinkhorn_%j.out
+#SBATCH --error=sinkhorn_%j.err
 #SBATCH --mem=50GB
 #SBATCH --time=6-00:00:00
 
 set -x
 
+sourcemodel=$1
 
 wd=$(pwd)
 echo "working directory ${wd}"
@@ -24,4 +25,4 @@ echo "sif ${SIF}"
 
 
 srun singularity exec --nv --cleanenv --bind ${wd}:${wd} ${SIF} \
-    python src/normal_equation_optimal_transport_grid_search_hyperparameter.py
+    python src/normal_equation_optimal_transport_grid_search_hyperparameter.py ${sourcemodel}
