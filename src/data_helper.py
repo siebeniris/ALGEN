@@ -3,7 +3,7 @@ from datasets import load_dataset
 
 
 def load_data_for_decoder(lang="eng-literal"):
-    lang_data_dir = "/Users/yiyichen/Documents/experiments/datasets/Morphology-Matters-corpus"
+    lang_data_dir = "dataset/Morphology-Matters-corpus"
     folderpath = lang
 
     lang_data_dir_ = os.path.join(lang_data_dir, folderpath)
@@ -13,7 +13,6 @@ def load_data_for_decoder(lang="eng-literal"):
     with open(os.path.join(lang_data_dir_, "test.txt")) as f:
         test_data = [x.replace("\n", "") for x in f.readlines()][:200]
     return train_data, test_data
-
 
 
 
