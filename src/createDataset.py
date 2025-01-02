@@ -45,6 +45,7 @@ class InversionDataset(Dataset):
             "input_ids": input_ids,
             "labels": labels,
             "length": token_lengths,
+            "lang": self.lang,
             "text": true_texts
         }
 
@@ -61,11 +62,9 @@ if __name__ == '__main__':
 
     encoder_decoder, tokenizer = load_encoder_decoder_and_tokenizer(example_model, device)
 
-
-
     encoder = encoder_decoder.encoder
 
-    dataset = InversionDataset(texts, tokenizer, encoder, device, 32)
+    dataset = InversionDataset(texts, tokenizer, "eng-literal", encoder, device, 32)
     dataloader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=dataset.collate_fn)
 
     for batch in dataloader:
