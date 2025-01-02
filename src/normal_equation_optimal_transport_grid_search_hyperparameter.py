@@ -143,7 +143,7 @@ def aligning_per_lang(source_model_name, output_dir="results_sinkhorn"):
     lang_data_dir = "dataset/Morphology-Matters-corpus"
     # source_model_names = [
     #     "sentence-transformers/gtr-t5-base",
-    #     "intfloat/multilingual-e5-base"
+    #     "intfloat/multilingual-e5-base",
     #     "google/flan-t5-base",
     #     "google-t5/t5-base",
     #     "google/mt5-base",

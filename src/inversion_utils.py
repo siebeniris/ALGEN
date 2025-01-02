@@ -3,6 +3,7 @@ from transformers.modeling_outputs import BaseModelOutput
 from transformers import T5ForConditionalGeneration, AutoModel, AutoTokenizer
 from torch.nn import LayerNorm
 import transformers.models.t5.modeling_t5 as t5_modeling
+from transformers  import AutoModelForSeq2SeqLM, AutoTokenizer
 
 t5_modeling.T5LayerNorm = LayerNorm
 
@@ -82,7 +83,7 @@ def decode_embeddings(embeddings,
     return decoded_text
 
 
-def add_punctuation_token_ids(sentence, tokenizer, max_length, punctuations=[".", "?", "!"]):
+def add_punctuation_token_ids(sentence, tokenizer, max_length, device, punctuations=[".", "?", "!"]):
     # add punctuation to tokens ids when there is None, improve the decoding results.
     punct_token_ids = tokenizer.convert_tokens_to_ids(punctuations)
     eos_id = tokenizer.eos_token_id
@@ -109,24 +110,41 @@ def fill_in_pad_eos_token(tokenizer):
     return tokenizer
 
 
+def load_encoder_decoder_and_tokenizer(model_name, device):
+    # load the target model and tokenizer
+    encoder_decoder = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    fill_in_pad_eos_token(tokenizer)
+    encoder_decoder.resize_token_embeddings(len(tokenizer))
+
+    encoder_decoder = encoder_decoder.to(device)
+    return encoder_decoder, tokenizer
+
+
+
 def load_tokenizer_models(source_model_name, target_model_name):
     # the goal is to align source model to target model.
     # the target model should be an encoder-decoder model
     # the source model only need embeddings
     source_model = AutoModel.from_pretrained(source_model_name)
-    target_model = T5ForConditionalGeneration.from_pretrained(target_model_name)
+    target_model = AutoModelForSeq2SeqLM.from_pretrained(target_model_name)
 
     source_hidden_dim = source_model.config.hidden_size
     target_hidden_dim = target_model.config.hidden_size
 
+    # https://github.com/huggingface/transformers/pull/24565 legacy, don't use fast
     source_tokenizer = AutoTokenizer.from_pretrained(source_model_name)
     target_tokenizer = AutoTokenizer.from_pretrained(target_model_name)
+
+    # processing tokenizer related paarametrers
+    # pad and eos token
     fill_in_pad_eos_token(source_tokenizer)
     fill_in_pad_eos_token(target_tokenizer)
-
+    # resize the tokenizers
     source_model.resize_token_embeddings(len(source_tokenizer))
     target_model.resize_token_embeddings(len(target_tokenizer))
 
+    # move the models to device.
     source_model = source_model.to(device)
     target_model = target_model.to(device)
 
@@ -135,14 +153,25 @@ def load_tokenizer_models(source_model_name, target_model_name):
             source_tokenizer, target_tokenizer)
 
 
+# vec2text/models/model_utils.py
+def mean_pool(
+    hidden_states: torch.Tensor, attention_mask: torch.Tensor
+) -> torch.Tensor:
+    B, S, D = hidden_states.shape
+    unmasked_outputs = hidden_states * attention_mask[..., None]
+    pooled_outputs = unmasked_outputs.sum(dim=1) / attention_mask.sum(dim=1)[:, None]
+    assert pooled_outputs.shape == (B, D)
+    return pooled_outputs
+
+
 def get_embeddings(train_data, test_data,
                    source_model, target_model,
                    source_tokenizer, target_tokenizer,
                    max_length=32, noise_level=0):
-    X_tokens = add_punctuation_token_ids(train_data, source_tokenizer, max_length)
-    Y_tokens = add_punctuation_token_ids(train_data, target_tokenizer, max_length)
-    X_test_tokens = add_punctuation_token_ids(test_data, source_tokenizer, max_length)
-    Y_test_tokens = add_punctuation_token_ids(test_data, target_tokenizer, max_length)
+    X_tokens = add_punctuation_token_ids(train_data, source_tokenizer, max_length, device)
+    Y_tokens = add_punctuation_token_ids(train_data, target_tokenizer, max_length, device)
+    X_test_tokens = add_punctuation_token_ids(test_data, source_tokenizer, max_length, device)
+    Y_test_tokens = add_punctuation_token_ids(test_data, target_tokenizer, max_length, device)
 
     with torch.no_grad():
         if source_model.config.is_encoder_decoder:

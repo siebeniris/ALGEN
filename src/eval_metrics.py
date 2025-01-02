@@ -29,8 +29,8 @@ def loss_metrics(X, Y):
     device = X.device
     target = torch.ones(batch_seq_len).to(device)
 
-    cosloss = cos_loss(X_reshape, Y_reshape, target)
-    mseloss = mse_loss(X, Y)
+    cosloss = cos_loss(X_reshape, Y_reshape, target, reduction='mean')
+    mseloss = mse_loss(X, Y, reduction='mean') # already averaged
     return cosloss, mseloss
 
 

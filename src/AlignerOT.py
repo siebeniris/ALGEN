@@ -179,7 +179,7 @@ class TokenAlignerOT(nn.Module):
         A = pairwise_cosine(X, Y)
         W = self.optimal_transport_weight(A, ot_strategy="ub_sinkhorn")
         # seq_len x seq_len
-        T = A * W  + self.delta_ot
+        T = A * W + self.delta_ot
         X_aligned = torch.mm(T, X)
         return X_aligned
 
@@ -224,4 +224,4 @@ class OtSimLoss(nn.Module):
             emb2.requires_grad_(True)
         A = pairwise_cosine(emb1, emb2, self.eps)
         ot_loss = self.optimal_transport_weight(A)
-        return torch.relu(1-ot_loss)
+        return torch.relu(1-ot_loss)  # max(0, 1-ot_loss)

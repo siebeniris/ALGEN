@@ -9,13 +9,21 @@ cos = torch.nn.CosineSimilarity(dim=1)
 
 def mapping_X_to_Y(X, Y):
     # mappting with normal equation.
-    batch_size, seq_len, _ = X.shape
-    X_ = X.reshape(-1, X.shape[-1])
-    Y_ = Y.reshape(-1, Y.shape[-1])
+    if len(X.shape) == 3:
+        batch_size, seq_len, _ = X.shape
+        X_ = X.reshape(-1, X.shape[-1])
+        Y_ = Y.reshape(-1, Y.shape[-1])
+    else:
+        batch_size, hidden_size = X.shape
+        X_ = X
+        Y_ = Y
+
     As = torch.linalg.pinv(X_.T @ X_) @ X_.T @ Y_
     Xs = X_ @ As
-
-    Xs_ = Xs.view(batch_size, seq_len, Xs.shape[-1])
+    if len(X.shape) == 3:
+        Xs_ = Xs.view(batch_size, seq_len, Xs.shape[-1])
+    else:
+        Xs_ = Xs
     return cos(Xs, Y_).mean(), Xs_, As
 
 
@@ -48,11 +56,10 @@ def optimal_transport_weight(sim, device,
     b = np.ones(m) / m
 
     if ot_strategy == "ub_sinkhorn":
-        weight = torch.FloatTensor(ot.unbalanced.sinkhorn_unbalanced(a, b,
-                                                                    M, reg, reg_m))
+        weight = torch.FloatTensor(ot.unbalanced.sinkhorn_unbalanced(a, b, M, reg, reg_m))
     elif ot_strategy == "gw":
         weight = torch.FloatTensor(gromov_wasserstein(C1, C2, a, b,
-                                                    'kl_loss'))
+                                                      'kl_loss'))
     else:
         weight = torch.FloatTensor(ot.emd(a, b, M))
     weight = weight.to(device)
@@ -79,15 +86,16 @@ def optimal_transport_align(X, Y, device,
             W = optimal_transport_weight(A, device, C1, C2, ot_strategy="gw")
         else:
             W = optimal_transport_weight(A, device,
-                                        reg=reg,
-                                        reg_m=reg_m,
-                                        ot_strategy=ot_strategy)
+                                         reg=reg,
+                                         reg_m=reg_m,
+                                         ot_strategy=ot_strategy)
         T = A * W
         # print(W.shape, A.shape, T.shape) # 32x32
+        # tried out without A, the result is worse.
         Ts.append(T)
 
         # 16, 512,
-        X_i_aligned = torch.mm(T.t(), X_i)
+        X_i_aligned = torch.mm(T, X_i)  # T.t() remove.
         cos_sims.append(cos(X_i_aligned, Y_i).mean().detach().cpu().numpy())
         X_aligned_ot.append(X_i_aligned)
 
@@ -102,7 +110,6 @@ def optimal_transport_align_test(X_test, Y_test, T):
     x_test_aligned_list = []
 
     for i in range(X_test.shape[0]):
-
         x_test_i = X_test[i]
         y_test_i = Y_test[i]
 

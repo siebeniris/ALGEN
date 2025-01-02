@@ -1,195 +1,577 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
-
-from alignment_models import (LinearAligner,
-                              NeuralAligner,
-                              optimal_transport_align,
-                              procrustes_alignment)
+from torch.utils.data import DataLoader
+from torch.optim import AdamW
+from torch.nn import MSELoss, CosineEmbeddingLoss
+import numpy as np
+from tqdm import tqdm
+import wandb
+from nltk.translate.bleu_score import corpus_bleu
+from rouge_score import rouge_scorer
+from typing import List, Dict
+import os
+from sklearn.metrics.pairwise import cosine_similarity
+from collections import defaultdict
 
 from InversionModel import EmbeddingInverter
-from losses import compute_transport_plan, alignment_loss_ot
-from utils import get_weights_from_attention_mask
-from torch.utils.data import DataLoader
+from create_dataset import EmbeddingDataset, custom_collate_fn
+from data_helper import load_data
+
+from inversion_utils import (
+    load_tokenizer_models,
+    get_embeddings,
+)
+from AlignerOT import TokenAlignerOT
+from inversion_methods import mapping_X_to_Y, test_alignment
+from eval_metrics import eval_decoding
+from utils import get_device, pairwise_cosine
 
 
-# Trainer Class
+def in_debug_mode():
+    try:
+        import pydevd  # PyCharm debugger
+        return True
+    except ImportError:
+        return False
+
+
 class EmbeddingInverterTrainer:
-    def __init__(self,
-                 model: EmbeddingInverter,
-                 train_loader: DataLoader,
-                 eval_loader:DataLoader, # test data.
-                 loss_fn, # TODO: type?
-                 learning_rate: float = 3e-4,
-                 weight_decay: float = 0.01):
-        """
-        Initialize the trainer.
-        Args:
-            model: EmbeddingInverter model
-            learning_rate: Learning rate for optimizer
-            weight_decay: Weight decay for optimizer
-        """
-        self.model = model
-        self.device = model.device
+    def __init__(
+            self,
+            model_G_name: str = "google/flan-t5-small",  # t5-small
+            model_S_name: str = "google/mt5-base",  # "intfloat/multilingual-e5-small"
+            save_dir: str = "checkpoints",
+            checkpoint_path: str = None,
+            resume_training: bool = False,
+            use_wandb: bool = True,
+            align_method: str = "ot",
+            learning_rate: float = 1e-4,
+            batch_size: int = 64,
+            num_epochs: int = 100,
+            max_length: int = 32,
+            decoding_strategy: str = "beam",
+            dataset_name: str = "Morphology",
+            language_script: str = "eng_Latn",
+            train_samples: int = 1000,
+            eval_samples: int = 200,
+    ):
+        self.align_method = align_method
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.num_epochs = num_epochs
+        self.max_length = max_length
+        self.model_G_name = model_G_name
+        self.model_S_name = model_S_name
+        self.save_dir = save_dir
+        self.use_wandb = use_wandb
+        self.decoding_strategy = decoding_strategy
 
-        self.train_loader = train_loader
-        self.eval_loader = eval_loader
+        self.dataset_name = dataset_name
+        self.language_script = language_script
+        self.train_samples = train_samples
+        self.eval_samples = eval_samples
 
-        self.optimizer = torch.optim.AdamW(
-            # only train the aligner parameters.
-            model.aligner.parameters(),
-            lr=learning_rate,
-            weight_decay=weight_decay
-        )
-        self.loss_fn = loss_fn
+        # Initialize model
+        # self.model = EmbeddingInverter(
+        #     model_G_name_or_path=model_G_name,
+        #     model_S_name_or_path=model_S_name,
+        #     max_length=max_length,
+        #     align_method=align_method,
+        #     decoding_strategy=decoding_strategy,
+        # )
 
-    def compute_loss_cosine(self, source_embeddings, target_embeddings,
-                            attention_mask=None):
-        """
-        Compute the loss using cosine similarity without normalizing embeddings.
-        Preserves the original magnitudes of the embeddings.
-        """
-        aligned_embeddings = self.model.aligner(source_embeddings)
+        (self.source_model, self.target_model,
+         self.source_hidden_dim, self.target_hidden_dim,
+         self.source_tokenizer, self.target_tokenizer) \
+            = load_tokenizer_models(self.model_S_name, self.model_G_name)
 
-        if attention_mask is not None:
-            # Apply attention mask
-            mask = attention_mask.unsqueeze(-1)
-            aligned_embeddings = aligned_embeddings * mask
-            target_embeddings = target_embeddings * mask
+        self.num_workers = 2
+        self.device = get_device()
 
-        # Compute dot product
-        dot_product = torch.sum(aligned_embeddings * target_embeddings, dim=-1)  # [batch_size, seq_len]
+        if self.align_method == "normal+ot":
+            self.aligner = TokenAlignerOT(self.source_hidden_dim, self.target_hidden_dim, self.device)
 
-        if attention_mask is not None:
-            # Apply mask to similarities and compute mean only over valid tokens
-            dot_product = dot_product * attention_mask
-            loss = -torch.sum(dot_product) / torch.sum(attention_mask)
+
+        # get the checkpoint_dir.
+        output_dir = f"{self.align_method}_epochs{self.num_epochs}_train{self.train_samples}_lr{self.learning_rate}_bs{self.batch_size}"
+        self.checkpoint_dir = os.path.join(self.save_dir, output_dir)
+
+        # Load from checkpoint if provided
+        self.start_epoch = 0
+        self.best_eval_loss = float('inf')
+        self.checkpoint_path = checkpoint_path
+
+        if checkpoint_path is not None:
+            self.load_checkpoint(checkpoint_path, resume_training)
         else:
-            loss = -torch.mean(dot_product)
+            # Initialize optimizer if not loading from checkpoint
+            self.optimizer = AdamW(self.aligner.parameters(), lr=learning_rate)
 
-        return loss, aligned_embeddings
+        # Initialize losses
+        self.mse_loss = MSELoss()
+        self.cos_loss = CosineEmbeddingLoss()
+        self.rouge_scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
-    def compute_loss(self, source_embeddings, target_embeddings,
-                     attention_mask=None):
-        """Compute the loss between aligned source and target embeddings."""
-        aligned_embeddings = self.model.aligner(source_embeddings)
-
-        if attention_mask is not None:
-            # Apply attention mask to both embeddings
-            aligned_embeddings = aligned_embeddings * attention_mask.unsqueeze(-1)
-            target_embeddings = target_embeddings * attention_mask.unsqueeze(-1)
-
-        # Compute MSE loss
-        loss = torch.nn.functional.mse_loss(aligned_embeddings, target_embeddings)
-        return loss, aligned_embeddings
-
-    def train_step(self, text_batch, loss_func):
-        """
-
-        :param text_batch: A batch of text (a list of texts?)
-        :param loss_func:
-        :return:
-        """
-        """Perform a single training step."""
-        # in the model, the model is already in the device.
-
-        print(f"model is loaded on device {self.device}")
-        self.model.train()
-        self.optimizer.zero_grad()
-
-        # Get source embeddings
-        with torch.no_grad():
-            source_embeddings, source_mask = self.model.get_embeddings_S(text_batch)
-            target_embeddings, target_mask = self.model.get_embeddings_G(text_batch)
-
-        if loss_func=="ot":
-            source_weights = get_weights_from_attention_mask(source_mask)
-            target_weights = get_weights_from_attention_mask(target_mask)
-
-        # Compute loss
-        else:
-            loss, _ = self.compute_loss(source_embeddings, target_embeddings, source_mask)
-
-        # Backward pass and optimization
-        loss.backward()
-        self.optimizer.step()
-
-        return loss.item()
-
-    def evaluate(self, text):
-        """Evaluate the model on validation data."""
-        self.model.eval()
-        with torch.no_grad():
-            # Get embeddings
-            source_embeddings, source_mask = self.model.get_embeddings_S(text)
-            target_embeddings, target_mask = self.model.get_embeddings_G(text)
-
-            # Compute loss
-            loss, aligned_embeddings = self.compute_loss(
-                source_embeddings,
-                target_embeddings,
-                source_mask
+        if use_wandb:
+            wandb.init(
+                project=f"embedding-inverter-{self.align_method}-{self.num_epochs}",
+                config={
+                    'model_G_name': self.model_G_name,
+                    'model_S_name': self.model_S_name,
+                    'align_method': self.align_method,
+                    'learning_rate': self.learning_rate,
+                    'batch_size': self.batch_size,
+                    'num_epochs': self.num_epochs,
+                    'max_length': self.max_length,
+                    "save_dir": self.save_dir,
+                    "checkpoint_path": self.checkpoint_path,
+                    'decoding_strategy': self.decoding_strategy
+                }
             )
 
-            # Decode aligned embeddings
-            decoded_text = self.model.decode_embeddings(aligned_embeddings, source_mask)
+        os.makedirs(save_dir, exist_ok=True)
 
-            # add evaluation for evaluating the decoded text and original text.
-            # TODO:
+    def compute_token_f1(self, pred_texts: List[str], target_texts: List[str]) -> float:
+        """TODO: Change this when it is in different Languages"""
+        f1_scores = []
+        for pred, target in zip(pred_texts, target_texts):
+            pred_tokens = set(pred.split())
+            target_tokens = set(target.split())
 
+            if len(pred_tokens) == 0 or len(target_tokens) == 0:
+                continue
 
-        return {
-            'loss': loss.item(),
-            'decoded_text': decoded_text
+            intersection = pred_tokens & target_tokens
+            precision = len(intersection) / len(pred_tokens)
+            recall = len(intersection) / len(target_tokens)
+
+            if precision + recall == 0:
+                continue
+
+            f1 = 2 * (precision * recall) / (precision + recall)
+            f1_scores.append(f1)
+
+        return np.mean(f1_scores) if f1_scores else 0.0
+
+    def compute_metrics(self, pred_texts: List[str], target_texts: List[str]) -> Dict[str, float]:
+        """Compute BLEU, ROUGE, and token F1 scores"""
+        # Prepare texts for BLEU
+        references = [[text.split()] for text in target_texts]
+        hypotheses = [text.split() for text in pred_texts]
+
+        # Calculate BLEU
+        bleu_score = corpus_bleu(references, hypotheses)
+
+        # Calculate ROUGE
+        rouge_scores = defaultdict(list)
+        for pred, target in zip(pred_texts, target_texts):
+            scores = self.rouge_scorer.score(target, pred)
+            for metric, score in scores.items():
+                rouge_scores[f"{metric}_f"].append(score.fmeasure)
+
+        rouge_scores = {k: np.mean(v) for k, v in rouge_scores.items()}
+
+        # Calculate token F1
+        token_f1 = self.compute_token_f1(pred_texts, target_texts)
+
+        metrics = {
+            "bleu": bleu_score,
+            "token_f1": token_f1,
+            **rouge_scores
         }
 
-    def train(self,
-              train_data,
-              val_data=None,
-              num_epochs=10,
-              batch_size=32,
-              eval_steps=100):
-        """
-        Train the model.
-        Args:
-            train_data: List of (source_text, target_text) pairs
-            val_data: Optional validation data
-            num_epochs: Number of training epochs
-            batch_size: Batch size
-            eval_steps: Evaluate every N steps
-        """
-        for epoch in range(num_epochs):
-            total_loss = 0
-            num_batches = 0
+        return metrics
 
-            # Create batches
-            for i in range(0, len(train_data), batch_size):
-                batch = train_data[i:i + batch_size]
-                source_texts, target_texts = zip(*batch)
+    def compute_embedding_similarity(self, aligned_embeddings: torch.Tensor,
+                                     target_embeddings: torch.Tensor,
+                                     attention_mask: torch.Tensor = None) -> Dict[str, float]:
+        """Compute embedding space similarity metrics"""
+        # Convert to numpy for sklearn cosine similarity
+        aligned_np = aligned_embeddings.detach().cpu().numpy()
+        target_np = target_embeddings.detach().cpu().numpy()
 
-                # Train step
-                loss = self.train_step(list(source_texts), list(target_texts))
-                total_loss += loss
-                num_batches += 1
+        print(aligned_np.shape, target_np.shape)
 
-                # Evaluate periodically
-                if num_batches % eval_steps == 0 and val_data is not None:
-                    self.evaluate_and_log(val_data, epoch, num_batches)
+        if attention_mask is not None:
+            mask_np = attention_mask.detach().cpu().numpy()
+            # Only consider non-padded tokens
+            aligned_np = aligned_np[mask_np.astype(bool)]
+            target_np = target_np[mask_np.astype(bool)]
 
-            # Log epoch results
-            avg_loss = total_loss / num_batches
-            print(f"Epoch {epoch + 1}/{num_epochs}, Average Loss: {avg_loss:.4f}")
+        # Compute cosine similarity
+        # [0= identical, 2=opposite]
 
-    def evaluate_and_log(self, val_data, epoch, batch):
-        """Helper function to evaluate and log results."""
-        eval_source, eval_target = zip(*val_data[:5])  # Take first 5 examples
-        eval_results = self.evaluate(list(eval_source), list(eval_target))
+        cos_sim = np.mean([cosine_similarity(a.reshape(1, -1), t.reshape(1, -1))[0][0]
+                           for a, t in zip(aligned_np, target_np)])
 
-        print(f"\nEvaluation at Epoch {epoch + 1}, Batch {batch}:")
-        print(f"Validation Loss: {eval_results['loss']:.4f}")
-        print("Sample Reconstructions:")
-        for src, tgt, dec in zip(eval_source, eval_target, eval_results['decoded_text']):
-            print(f"\nSource: {src}")
-            print(f"Target: {tgt}")
-            print(f"Decoded: {dec}")
-            print("-" * 50)
+        # Compute MSE
+        mse = np.mean((aligned_np - target_np) ** 2)
+
+        return {
+            "embedding_cos_sim": cos_sim,
+            "embedding_mse": mse
+        }
+
+    def train_step(self, batch: Dict[str, torch.Tensor]) -> Dict[str, float]:
+        """Single training step"""
+        self.optimizer.zero_grad()
+        # print(batch)
+
+        # Forward pass
+        # batch = batch.to(self.device)
+        aligned_embeddings = self.aligner(batch)
+        # TODO: change the shape?
+        # reshape to [batch_size*seq_len, hidden_dim] for evaluating cos_loss.
+        aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
+        target_embeddings_reshaped = batch["Y"].view(-1, batch["Y"].size(-1))
+        batch_seq_len = target_embeddings_reshaped.shape[0]
+        target = torch.ones(batch_seq_len).to(self.device)
+
+        # cosine loss
+        cos_loss = self.cos_loss(
+            # [batch_size*seq_len, hidden_dim]
+            aligned_embeddings_reshaped, target_embeddings_reshaped, target
+        )
+
+        # Compute MSE loss
+        mse_loss = self.mse_loss(aligned_embeddings, batch["Y"])
+
+        # Weighted combination
+        # TODO: we can also add weights for the losses,
+        loss = mse_loss + cos_loss
+
+        # Backward pass
+        loss.backward()
+        self.optimizer.step()
+        return {
+            "train_loss": loss.item(),
+            "train_mse_loss": mse_loss.item(),
+            "train_cos_loss": cos_loss.item()
+        }
+
+    def evaluate(self, eval_dataloader: DataLoader) -> Dict[str, float]:
+        """Evaluate the model"""
+        self.aligner.eval()
+        all_metrics = defaultdict(list)
+        all_texts = []
+        all_decoded_texts = []
+        all_decoded_texts_Y = []
+
+        with torch.no_grad():
+            for batch in tqdm(eval_dataloader, desc="Evaluating"):
+                # Get aligned embeddings and decoded text
+                aligned_embeddings = self.aligner(batch)
+                # might need to change later when tokenizers aren't the same.
+                # decoded_texts_X =
+                decoded_texts_X = self.model.decode_embeddings(aligned_embeddings, batch["Y_attention_mask"])
+                decoded_texts_Y = self.model.decode_embeddings(batch["Y"], batch["Y_attention_mask"])
+                print("aligned embedding and original: ", aligned_embeddings.shape, batch["Y"].shape)
+                # Compute embedding similarities
+
+                emb_metrics = self.compute_embedding_similarity(
+                    aligned_embeddings, batch["Y"]
+                )
+
+                ###### compute the loss
+                aligned_embeddings_reshaped = aligned_embeddings.view(-1, aligned_embeddings.size(-1))
+                target_embeddings_reshaped = batch["Y"].view(-1, batch["Y"].size(-1))
+                batch_seq_len = target_embeddings_reshaped.shape[0]
+                target = torch.ones(batch_seq_len).to(self.device)
+                # [batch_size*seq_len, hidden_dim]
+
+                eval_cos_loss = self.cos_loss(aligned_embeddings_reshaped, target_embeddings_reshaped, target)
+                eval_mse_loss = self.mse_loss(aligned_embeddings, batch["Y"])
+
+                eval_cos_loss = eval_cos_loss.detach().cpu().numpy()
+                eval_mse_loss = eval_mse_loss.detach().cpu().numpy()
+
+                # eval_loss
+                eval_loss = eval_mse_loss + eval_cos_loss
+
+                eval_loss_metrics = {
+                    "loss": eval_loss,
+                    "cos_loss": eval_cos_loss,
+                    "mse_loss": eval_mse_loss
+
+                }
+
+                # Store texts for later metric computation
+                all_texts.extend(batch["text"])
+                all_decoded_texts.extend(decoded_texts_X)
+                all_decoded_texts_Y.extend(decoded_texts_Y)
+
+                # Store embedding metrics
+                for k, v in emb_metrics.items():
+                    all_metrics[k].append(v)
+
+                for k, v in eval_loss_metrics.items():
+                    all_metrics[k].append(v)
+
+        # Compute text generation metrics
+        text_metrics_X_Gold = self.compute_metrics(all_decoded_texts, all_texts)
+        text_metrics_X_Y = self.compute_metrics(all_decoded_texts, all_decoded_texts_Y)
+        text_metrics_Y_Gold = self.compute_metrics(all_decoded_texts_Y, all_texts)
+
+        # Combine and average all metrics
+        final_metrics = {}
+        for k, v in all_metrics.items():
+            final_metrics[f"eval_{k}"] = np.mean(v)
+
+        for k, v in text_metrics_X_Gold.items():
+            final_metrics[f"X_Gold_eval_{k}"] = v
+        for k, v in text_metrics_X_Y.items():
+            final_metrics[f"X_Y_eval_{k}"] = v
+        for k, v in text_metrics_Y_Gold.items():
+            final_metrics[f"Y_Gold_eval_{k}"] = v
+
+        self.model.train()
+        return final_metrics
+
+    def save_checkpoint(self, epoch: int, metrics: Dict[str, float], is_best: bool = False):
+        """Save training checkpoint"""
+        checkpoint = {
+            'epoch': epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'best_eval_loss': self.best_eval_loss,
+            'metrics': metrics,
+            'config': {
+                'align_method': self.align_method,
+                'learning_rate': self.learning_rate,
+                'batch_size': self.batch_size,
+                'num_epochs': self.num_epochs,
+                'max_length': self.max_length,
+                'model_G_name': self.model_G_name,
+                'model_S_name': self.model_S_name,
+                "save_dir": self.save_dir,
+                "checkpoint_path": self.checkpoint_path,
+                "use_wandb": self.use_wandb,
+                'decoding_strategy': self.decoding_strategy
+            }
+        }
+
+        # Save regular checkpoint
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        checkpoint_path = os.path.join(self.checkpoint_dir, f'checkpoint_epoch_{epoch}.pt')
+        torch.save(checkpoint, checkpoint_path)
+
+        # Save best model separately
+        if is_best:
+            best_model_path = os.path.join(self.checkpoint_dir,
+                                           f'best_model_{self.align_method}.pt')
+            torch.save(checkpoint, best_model_path)
+            print(f"Saved best model to {best_model_path}")
+
+        print(f"Saved checkpoint to {checkpoint_path}")
+
+        # Remove old checkpoints to save space (keep only last 3)
+        self.cleanup_old_checkpoints()
+
+    def cleanup_old_checkpoints(self, keep_last_n: int = 3):
+        """Remove old checkpoints, keeping only the last n"""
+        checkpoints = [f for f in os.listdir(self.checkpoint_dir)
+                       if f.startswith('checkpoint_epoch_') and f.endswith('.pt')]
+        checkpoints.sort(key=lambda x: int(x.split('_')[2].split('.')[0]))
+
+        for checkpoint in checkpoints[:-keep_last_n]:
+            os.remove(os.path.join(self.checkpoint_dir, checkpoint))
+
+    def load_checkpoint(self, checkpoint_path: str, resume_training: bool = True):
+        """Load model and training state from checkpoint"""
+        print(f"Loading checkpoint from {checkpoint_path}")
+
+        if not os.path.exists(checkpoint_path):
+            raise FileNotFoundError(f"No checkpoint found at {checkpoint_path}")
+
+        checkpoint = torch.load(checkpoint_path, map_location=self.model.device)
+
+        # Load model state
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+
+        if resume_training:
+            # Load training state
+            self.optimizer = AdamW(self.model.aligner.parameters(), lr=self.learning_rate)
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.start_epoch = checkpoint['epoch'] + 1
+            self.best_eval_loss = checkpoint['best_eval_loss']
+
+            # Log resumed training
+            print(f"Resuming training from epoch {self.start_epoch}")
+            print(f"Best eval loss so far: {self.best_eval_loss}")
+            if self.use_wandb:
+                wandb.run.summary["resumed_from_epoch"] = checkpoint['epoch']
+        else:
+            # Only load model weights for fine-tuning
+            print("Loaded model weights for fine-tuning with fresh training state")
+            self.optimizer = AdamW(self.model.aligner.parameters(), lr=self.learning_rate)
+
+    def load_best_model(self):
+        """Load the best performing model"""
+        best_model_path = os.path.join(self.checkpoint_dir, f'best_model_{self.align_method}.pt')
+        if os.path.exists(best_model_path):
+            checkpoint = torch.load(best_model_path, map_location=self.model.device)
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            print(f"Loaded best model from {best_model_path}")
+            return checkpoint['metrics']
+        else:
+            print("No best model checkpoint found")
+            return None
+
+    def get_cossim(self, X, Y):
+        cos = torch.nn.CosineSimilarity(dim=1)
+        return cos(X, Y)
+
+    def mapping_X_to_Y(self, X, Y):
+        batch_size, seq_len, _ = X.shape
+        X_ = X.reshape(-1, X.shape[-1])
+        Y_ = Y.reshape(-1, Y.shape[-1])
+        As = torch.linalg.pinv(X_.T @ X_) @ X_.T @ Y_
+        Xs = X_ @ As
+        Xs_ = Xs.view(batch_size, seq_len, Xs.shape[-1])
+        return self.get_cossim(Xs, Y_).mean(), Xs_, As
+
+    def test_alignment(self, X_test, Y_test, As):
+        test_batch_size, test_seq_len, test_x_dim = X_test.shape
+
+        x = X_test.reshape(-1, X_test.shape[-1])
+        y = Y_test.reshape(-1, Y_test.shape[-1])
+        x_ = x @ As
+        cossim = self.get_cossim(x_, y).mean()
+        x_ = x_.view(test_batch_size, test_seq_len, x_.shape[-1])
+        return cossim, x_
+
+    def inversion_normal_function(self, X, Y, X_test, Y_test):
+        # align the embeddings from X to Y first
+        # X, X_attention_mask = self.model.get_embeddings_S(train_data)
+        # Y, Y_attention_mask, Y_gold_text = self.model.get_embeddings_G_and_ground_truth(train_data)
+        #
+        # X_test, X_test_attention_mask = self.model.get_embeddings_S(test_data)
+        # Y_test, Y_test_attention_mask, Y_test_gold_text = self.model.get_embeddings_G_and_ground_truth(test_data)
+
+        # align X to Y
+        X_Y_COSSIM, X_aligned, T = self.mapping_X_to_Y(X, Y)
+        x_y_test_cossim, x_test_aligned = self.test_alignment(X_test, Y_test, T)
+        return (X_aligned,
+                x_test_aligned,
+                X_Y_COSSIM, x_y_test_cossim)
+
+    def train(self):
+        """Main training loop"""
+        # Create datasets
+        # TODO: change this , DATA IS OVERLAPING.
+        all_texts = load_data(self.dataset_name, self.language_script, nr_samples=self.train_samples)
+        if in_debug_mode():
+            all_texts = all_texts[:10]
+
+            print(f"loading datasize {len(all_texts)}")
+
+            split_index = 8
+            train_texts = all_texts[:split_index]
+            eval_texts = all_texts[split_index:]
+        else:
+            train_texts = all_texts[:1000]
+            eval_texts = all_texts[1000:]
+
+        X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens = \
+            get_embeddings(train_texts, eval_texts, self.source_model, self.target_model,
+                           self.source_tokenizer, self.target_tokenizer, self.max_length)
+
+        X, X_attention_mask = self.model.get_embeddings_S(train_texts)
+        Y, Y_attention_mask, Y_gold_text = self.model.get_embeddings_G_and_ground_truth(train_texts)
+
+        X_test, X_test_attention_mask = self.model.get_embeddings_S(eval_texts)
+        Y_test, Y_test_attention_mask, Y_test_gold_text = self.model.get_embeddings_G_and_ground_truth(eval_texts)
+
+        if self.align_method == "normal+ot":
+            (X_aligned,
+             x_test_aligned,
+             X_Y_COSSIM, x_y_test_cossim) = self.inversion_normal_function(X, Y, X_test, Y_test)
+
+            print(X_Y_COSSIM, x_y_test_cossim)
+            print(X_aligned.shape, Y.shape, x_test_aligned.shape, Y_test.shape, )
+
+            train_dataset = EmbeddingDataset(X_aligned, Y, Y_attention_mask, Y_gold_text)
+            eval_dataset = EmbeddingDataset(x_test_aligned, Y_test, Y_test_attention_mask, Y_test_gold_text)
+
+        else:
+            print("Using not aligned X directly")
+            train_dataset = EmbeddingDataset(X, Y, Y_attention_mask, Y_gold_text)
+            eval_dataset = EmbeddingDataset(X_test, Y_test, Y_test_attention_mask, Y_test_gold_text)
+
+
+        ################# align embeddings.
+
+        print(f"num workers for dataloader {self.num_workers}")
+        # Create dataloaders
+        train_dataloader = DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=custom_collate_fn,
+            # num_workers=self.num_workers,  # if you're using multiple workers
+            pin_memory=False,  # if you're using GPU
+            drop_last=False,
+        )
+
+        eval_dataloader = DataLoader(
+            eval_dataset,
+            batch_size=self.batch_size,
+            collate_fn=custom_collate_fn,
+            pin_memory=False,  # if you're using GPU
+        )
+
+        for epoch in range(self.start_epoch, self.num_epochs):
+            self.model.train()
+            epoch_metrics = defaultdict(list)
+
+            # Training loop
+            pbar = tqdm(train_dataloader, desc=f"Epoch {epoch + 1}/{self.num_epochs}")
+            for batch in pbar:
+
+                step_metrics = self.train_step(batch)
+
+                for k, v in step_metrics.items():
+                    epoch_metrics[k].append(v)
+                pbar.set_postfix({k: f"{np.mean(v):.4f}" for k, v in epoch_metrics.items()})
+
+            # Evaluation
+            eval_metrics = self.evaluate(eval_dataloader)
+
+            # Log metrics including loss
+            metrics = {
+                # train_losses
+                **{k: np.mean(v) for k, v in epoch_metrics.items()},
+                **eval_metrics
+            }
+
+            if self.use_wandb:
+                wandb.log(metrics, step=epoch)
+
+            # Save best model
+            # Save checkpoint and check for best model
+            is_best = eval_metrics["eval_loss"] < self.best_eval_loss
+            if is_best:
+                self.best_eval_loss = eval_metrics["eval_loss"]
+
+            self.save_checkpoint(epoch, metrics, is_best=is_best)
+
+            print(f"Epoch {epoch + 1} metrics:")
+            for k, v in metrics.items():
+                print(f"{k}: {v:.4f}")
+
+
+def main():
+    # Load data
+    # Initialize trainer
+    trainer = EmbeddingInverterTrainer(
+        align_method="ot",
+        learning_rate=1e-4,
+        batch_size=2,
+        num_epochs=100
+    )
+
+    # Train model
+    trainer.train()
+
+
+if __name__ == "__main__":
+    main()

@@ -70,9 +70,9 @@ def pairwise_cosine(m1, m2=None, eps=1e-6):
 def get_device():
     """Determine the best available device for macOS"""
     if torch.cuda.is_available():
-        return 'cuda'
+        return torch.device('cuda')
     else:
-        return 'cpu'
+        return torch.device('cpu')
 
 
 def sinkhorn(b, a, C, reg=1e-1, method='sinkhorn', maxIter=1000,
