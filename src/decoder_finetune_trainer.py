@@ -268,23 +268,3 @@ class DecoderFinetuneTrainer:
         val_loss = checkpoint.get("val_loss", float("inf"))
 
         print(f"Loaded model from {checkpoint_path} (epoch={epoch}, val_loss={val_loss})")
-
-
-def train_process(rank):
-    print(f"Process {rank} started")
-    print(f"CUDA Available? {torch.cuda.is_available()}")
-
-
-
-if __name__ == '__main__':
-    import torch.multiprocessing as mp
-
-    mp.set_start_method("spawn", force=True)
-    mp.spawn(train_process, args=(), nprocs=4)
-
-    example_model = "google/flan-t5-small"
-    outputdir = f"outputs/{example_model.replace("/", "-")}"
-
-    trainer = DecoderFinetuneTrainer(example_model, outputdir)
-    trainer.train()
-
