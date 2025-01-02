@@ -2,8 +2,11 @@ import torch
 from transformers.modeling_outputs import BaseModelOutput
 from transformers import T5ForConditionalGeneration, AutoModel, AutoTokenizer
 from torch.nn import LayerNorm
-import transformers.models.t5.modeling_t5 as t5_modeling
 from transformers  import AutoModelForSeq2SeqLM, AutoTokenizer
+import numpy as np
+import random
+
+import transformers.models.t5.modeling_t5 as t5_modeling
 
 t5_modeling.T5LayerNorm = LayerNorm
 
@@ -11,6 +14,16 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 # set up rouge scores
 
 cos = torch.nn.CosineSimilarity(dim=1)
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # For multi-GPU setups
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def decode_embeddings(embeddings,

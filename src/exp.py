@@ -4,7 +4,7 @@ import torch
 import torch.multiprocessing as mp
 
 from decoder_finetune_trainer import DecoderFinetuneTrainer
-
+from inversion_utils import set_seed
 
 def train_process(rank):
     print(f"Process {rank} started")
@@ -47,6 +47,8 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
+
+    set_seed(42)
 
     mp.set_start_method("spawn", force=True)
     mp.spawn(train_process, args=(), nprocs=4)
