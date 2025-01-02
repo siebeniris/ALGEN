@@ -28,10 +28,12 @@ class DecoderFinetuneModel(nn.Module):
             nn.GELU(),
             nn.Linear(bottleneck_dim, encoder_hidden_dim * self.num_repeat_tokens)
         )
+        self.embedding_transform = self.embedding_transform.to(self.device)
 
     def get_embeddings(self, hidden_states, attention_mask):
         # get the mean_pooled.
         embeddings = mean_pool(hidden_states, attention_mask)
+        embeddings = embeddings.to(self.device)
 
         repeated_embeddings = self.embedding_transform(embeddings)
         embeddings = repeated_embeddings.reshape(
