@@ -248,10 +248,10 @@ class DecoderFinetuneTrainer:
             "bleu2": round(bleu_scores["precisions"][1], 2),
             "bleu3": round(bleu_scores["precisions"][2], 2),
             "bleu4": round(bleu_scores["precisions"][3], 2),
-            "rougeL": round(rouge_score_dict["rougeL_f"]*100, 2),
-            "rouge1": round(rouge_score_dict["rouge1_f"]*100, 2),
-            "rouge2": round(rouge_score_dict["rouge2_f"]*100, 2),
-            "exact_match": round(sum(exact_matches) / len(exact_matches)*100,2)
+            "rougeL": round(rouge_score_dict["rougeL_f"], 4),
+            "rouge1": round(rouge_score_dict["rouge1_f"], 4),
+            "rouge2": round(rouge_score_dict["rouge2_f"], 4),
+            "exact_match": round(sum(exact_matches) / len(exact_matches), 4)
         }
         # oracle : 70 rougeL
         return gen_metrics
