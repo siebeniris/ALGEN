@@ -140,7 +140,10 @@ class DecoderFinetuneTrainer:
         Train the model
         """
         try:
-            for epoch in range(self.num_epochs):
+            # check if start_epoch exists, it means a fine-tuned model is loaded.
+            start_epoch = getattr(self, "start_epoch", 0)
+            print(f"the starting epoch for training is {start_epoch}")
+            for epoch in range(start_epoch, self.num_epochs):
                 self.model.train()
 
                 epoch_loss = 0.0
@@ -309,10 +312,10 @@ class DecoderFinetuneTrainer:
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
         # Optionally, load other information (e.g., epoch, val_loss)
-        epoch = checkpoint.get("epoch", 0)
+        self.start_epoch = checkpoint.get("epoch", 0) + 1
         val_loss = checkpoint.get("val_loss", float("inf"))
 
-        print(f"Loaded model from {checkpoint_path} (epoch={epoch}, val_loss={val_loss})")
+        print(f"Loaded model from {checkpoint_path} (epoch={self.start_epoch}, val_loss={val_loss})")
 
     def load_best_model(self):
         """
@@ -323,5 +326,11 @@ class DecoderFinetuneTrainer:
 
         # Load the model with the lowest validation loss
         self.best_val_loss, best_checkpoint_path = self.best_models[0]
-        self.load_model_from_checkpoint(best_checkpoint_path)
+        checkpoint = torch.load(best_checkpoint_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        # Update the total number of epochs completed
+        self.start_epoch = checkpoint.get("epoch", 0) + 1  # Start from the next epoch
         print(f"Loaded best model with val_loss={self.best_val_loss} from {best_checkpoint_path}")
+        print(f"Resuming training from epoch {self.start_epoch}")
