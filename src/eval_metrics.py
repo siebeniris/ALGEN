@@ -11,6 +11,8 @@ from inversion_utils import decode_embeddings
 rouge_scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 mse_loss = MSELoss()
 cos_loss = CosineEmbeddingLoss()
+cos = torch.nn.CosineSimilarity(dim=1)
+
 
 
 def get_rouge_scores(pred, target):
@@ -32,6 +34,17 @@ def loss_metrics(X, Y):
     cosloss = cos_loss(X_reshape, Y_reshape, target, reduction='mean')
     mseloss = mse_loss(X, Y, reduction='mean') # already averaged
     return cosloss, mseloss
+
+
+def eval_embeddings(X, Y):
+    """
+    Evaluate the embeddings cosine similarities and mse loss.
+    :param X:
+    :param Y:
+    :return:
+    """
+    return cos(X,Y).mean(), mse_loss(X,Y)
+
 
 
 def eval_decoding(X_test_aligned, Y_test, Y_test_gold_texts, Y_test_mask, target_model, target_tokenizer,

@@ -1,7 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
-from inversion_utils import load_encoder_decoder_and_tokenizer, add_punctuation_token_ids
-
+from inversion_utils import load_encoder_decoder_and_tokenizer, add_punctuation_token_ids, mean_pool
 
 class InversionDataset(Dataset):
     def __init__(self, texts, tokenier, lang, encoder, device, max_length=32):
@@ -28,6 +27,8 @@ class InversionDataset(Dataset):
         with torch.no_grad():
             hidden_states = self.encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
 
+        # mean pooled.
+        hidden_states = mean_pool(hidden_states, attention_mask)
         # labels.
         # eos_token_id=1, "."=5, pad_token_id=0
         labels = input_ids.clone()

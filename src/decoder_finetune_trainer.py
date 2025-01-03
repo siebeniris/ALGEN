@@ -1,6 +1,5 @@
 import json
 import os
-import multiprocessing
 
 import torch
 import numpy as np
@@ -32,7 +31,8 @@ class DecoderFinetuneTrainer:
                  weight_decay: float = 1e-5,
                  num_epochs: int = 50,
                  wandb_run_name: str = "decoder_finetuning",
-                 checkpoint_path: str = None
+                 checkpoint_path: str = None,
+                 training_mode: str = None
                  ):
 
         self.args = {
@@ -76,38 +76,42 @@ class DecoderFinetuneTrainer:
 
         # continue training
         # Check if training_args_and_best_models.json exists
-        args_file_path = os.path.join(self.output_dir, "training_args_and_best_models.json")
-        if os.path.exists(args_file_path):
-            print(f"Found existing training arguments and best models at {args_file_path}. Loading...")
-            with open(args_file_path, "r") as f:
-                data = json.load(f)
-            if self.args == data["training_args"]:
-                print(f"Training arguments match. Loading the best model...")
-                self.best_models = data["best_models"]
-                self.load_best_model()  # Load the best model
-            else:
-                print("Training arguments do not match. Finetuning decoder fresh.")
-                self.best_models = []
-                self.best_val_loss = float("inf")
+
+        if training_mode == "continue":
+            args_file_path = os.path.join(self.output_dir, "training_args_and_best_models.json")
+            if os.path.exists(args_file_path):
+                print(f"Found existing training arguments and best models at {args_file_path}. Loading...")
+                with open(args_file_path, "r") as f:
+                    data = json.load(f)
+                if self.args == data["training_args"]:
+                    print(f"Training arguments match. Loading the best model...")
+                    self.best_models = data["best_models"]
+                    self.load_best_model()  # Load the best model
+                else:
+                    print("Training arguments do not match. Finetuning decoder fresh.")
+                    self.best_models = []
+                    self.best_val_loss = float("inf")
         else:
-            print(f"No existing training arguments and best models found at {args_file_path}. Starting fresh.")
+            print(f"Initializing best models and best val loss...")
             self.best_models = []
             self.best_val_loss = float("inf")
 
-        self.wandb_project = model_name.replace("/", "_") + "_" + wandb_run_name
-        if self.wandb_project:
-            wandb.init(project=self.wandb_project, name=wandb_run_name,
-                       config={
-                           "model_name": model_name,
-                           "max_length": max_length,
-                           "data_folder": data_folder,
-                           "lang": lang,
-                           "train_samples": train_samples,
-                           "val_samples": val_samples,
-                           "batch_size": batch_size,
-                           "learning_rate": learning_rate,
-                           "num_epochs": num_epochs,
-                       })
+        if training_mode != "test":
+
+            self.wandb_project = model_name.replace("/", "_") + "_" + wandb_run_name
+            if self.wandb_project:
+                wandb.init(project=self.wandb_project, name=wandb_run_name,
+                           config={
+                               "model_name": model_name,
+                               "max_length": max_length,
+                               "data_folder": data_folder,
+                               "lang": lang,
+                               "train_samples": train_samples,
+                               "val_samples": val_samples,
+                               "batch_size": batch_size,
+                               "learning_rate": learning_rate,
+                               "num_epochs": num_epochs,
+                           })
 
         if checkpoint_path:
             self.load_model_from_checkpoint(checkpoint_path)

@@ -21,6 +21,7 @@ class DecoderFinetuneModel(nn.Module):
         encoder_hidden_dim = self.embedder_dim
         self.num_repeat_tokens = max_length
         self.encoder_decoder.config.max_length = max_length
+        self.max_length=max_length
 
         self.embedding_transform = nn.Sequential(
             nn.Linear(self.embedder_dim, bottleneck_dim),
@@ -30,9 +31,9 @@ class DecoderFinetuneModel(nn.Module):
         )
         self.embedding_transform = self.embedding_transform.to(self.device)
 
-    def get_embeddings(self, hidden_states, attention_mask):
+    def get_embeddings(self, embeddings, attention_mask):
         # get the mean_pooled.
-        embeddings = mean_pool(hidden_states, attention_mask)
+        # embeddings = mean_pool(hidden_states, attention_mask)
         embeddings = embeddings.to(self.device)
 
         repeated_embeddings = self.embedding_transform(embeddings)
@@ -63,7 +64,7 @@ class DecoderFinetuneModel(nn.Module):
             inputs_embeds=input_embeds,
             attention_mask=attention_mask,
             decoder_input_ids=decoder_input_ids,
-            max_length=self.num_repeat_tokens + 10,
+            max_length=self.max_length,
             num_beams=3,
             repetition_penalty=2.0,
             length_penalty=2.0,
@@ -85,7 +86,7 @@ class DecoderFinetuneModel(nn.Module):
         # decoder input ids are right shifted using labels from T5 models
         output = self.encoder_decoder(inputs_embeds=input_embeds,
                                       attention_mask=attention_mask,
-                                      labels=inputs["labels"],
-                                      )
+                                      labels=inputs["labels"])
+
         # loss (1 item), logits: (batch_size, seq_length, vocab_size)
         return output

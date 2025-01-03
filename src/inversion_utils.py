@@ -134,6 +134,16 @@ def load_encoder_decoder_and_tokenizer(model_name, device):
     return encoder_decoder, tokenizer
 
 
+def load_source_encoder_and_tokenizer(model_name, device):
+    encoder = AutoModel.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    fill_in_pad_eos_token(tokenizer)
+    encoder.resize_token_embeddings(len(tokenizer))
+
+    encoder = encoder.to(device)
+    return encoder, tokenizer
+
+
 
 def load_tokenizer_models(source_model_name, target_model_name):
     # the goal is to align source model to target model.
@@ -203,4 +213,31 @@ def get_embeddings(train_data, test_data,
         X_test += noise_level * torch.rand(X_test.shape)
     return X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens
 
+
+
+def get_embeddings_from_encoders(train_data, test_data,
+                   source_model, target_model,
+                   source_tokenizer, target_tokenizer,
+                   max_length=32, noise_level=0):
+    X_tokens = add_punctuation_token_ids(train_data, source_tokenizer, max_length, device)
+    Y_tokens = add_punctuation_token_ids(train_data, target_tokenizer, max_length, device)
+    X_test_tokens = add_punctuation_token_ids(test_data, source_tokenizer, max_length, device)
+    Y_test_tokens = add_punctuation_token_ids(test_data, target_tokenizer, max_length, device)
+
+    with torch.no_grad():
+        if source_model.config.is_encoder_decoder:
+            print("source model is encoder_decoder")
+            X = source_model.encoder(**X_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+            X_test = source_model.encoder(**X_test_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+        else:
+            print("source model is not a encoder_decoder")
+            X = source_model(**X_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+            X_test = source_model(**X_test_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+        Y = target_model(**Y_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+        Y_test = target_model(**Y_test_tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+
+    if noise_level > 0:
+        X += noise_level * torch.randn(X.shape)
+        X_test += noise_level * torch.rand(X_test.shape)
+    return X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens
 
