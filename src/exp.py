@@ -6,9 +6,11 @@ import torch.multiprocessing as mp
 from decoder_finetune_trainer import DecoderFinetuneTrainer
 from inversion_utils import set_seed
 
+
 def train_process(rank):
     print(f"Process {rank} started")
     print(f"CUDA Available? {torch.cuda.is_available()}")
+
 
 def parse_args():
     """
@@ -37,6 +39,8 @@ def parse_args():
                         help="Batch size for training and validation (default: 8).")
     parser.add_argument("--learning_rate", type=float, default=1e-4,
                         help="Learning rate for the optimizer (default: 1e-4).")
+    parser.add_argument("--weight_decay", type=float, default=1e-5,
+                        help="Weight decay for learning rate of the optimizer (default: 1e-5).")
     parser.add_argument("--num_epochs", type=int, default=50,
                         help="Number of epochs to train (default: 50).")
     parser.add_argument("--wandb_run_name", type=str, default="decoder_finetuning",
@@ -65,6 +69,7 @@ if __name__ == '__main__':
         val_samples=args.val_samples,
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
         num_epochs=args.num_epochs,
         wandb_run_name=args.wandb_run_name,
         checkpoint_path=args.checkpoint_path

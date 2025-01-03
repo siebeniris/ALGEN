@@ -29,6 +29,7 @@ class DecoderFinetuneTrainer:
                  val_samples: int = 200,
                  batch_size: int = 8,
                  learning_rate: float = 1e-4,  # (T5)
+                 weight_decay: float = 1e-5,
                  num_epochs: int = 50,
                  wandb_run_name: str = "decoder_finetuning",
                  checkpoint_path: str = None
@@ -44,6 +45,7 @@ class DecoderFinetuneTrainer:
             "val_samples": val_samples,
             "batch_size": batch_size,
             "learning_rate": learning_rate,
+            "weight_decay": weight_decay,
             "num_epochs": num_epochs,
             "wandb_run_name": wandb_run_name,
             "checkpoint_path": checkpoint_path
@@ -59,16 +61,16 @@ class DecoderFinetuneTrainer:
         self.device = self.model.device
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.num_epochs = num_epochs
         self.tokenizer = self.model.tokenizer
         self.encoder = self.model.encoder_decoder.encoder
         # initialize the resources
         self.initialize_resources()
 
-
         self.output_dir = os.path.join(output_dir,
-            model_name.replace("/", "_"),
-            f"{lang}_maxlength{max_length}_train{train_samples}_batch_size{batch_size}_lr{learning_rate}_epochs{num_epochs}")
+                                       model_name.replace("/", "_"),
+                                       f"{lang}_maxlength{max_length}_train{train_samples}_batch_size{batch_size}_lr{learning_rate}_epochs{num_epochs}")
 
         os.makedirs(self.output_dir, exist_ok=True)
 
@@ -130,7 +132,7 @@ class DecoderFinetuneTrainer:
                                      collate_fn=self.val_dataset.collate_fn,
                                      num_workers=0
                                      )
-        self.optimizer = AdamW(self.model.parameters(), lr=self.learning_rate)
+        self.optimizer = AdamW(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 
         self.rouge_metric = get_rouge_scores
         self.bleu_metric = evaluate.load("bleu")
@@ -290,7 +292,6 @@ class DecoderFinetuneTrainer:
                     "training_args": self.args,
                     "best_models": self.best_models,
                 }, f, indent=4)
-
 
             print(f"Saved new best model with val_loss={val_loss} at {checkpoint_path}")
             print(f"Saved training arguments and best models at {args_file_path}")

@@ -26,8 +26,9 @@ TRAIN_SAMPLES=$6
 VAL_SAMPLES=$7
 BATCH_SIZE=$8
 LR=$9
-NUM_EPOCHS=${10}
-WAND_RUN_NAME=${11}
+WEIGHT_DECAY=${10}
+NUM_EPOCHS=${11}
+WAND_RUN_NAME=${12}
 
 
 
@@ -48,5 +49,6 @@ srun singularity exec --nv --cleanenv --bind ${wd}:${wd} ${SIF} \
     --val_samples ${VAL_SAMPLES} \
     --batch_size ${BATCH_SIZE} \
     --learning_rate ${LR} \
+    --weight_decay ${WEIGHT_DECAY} \
     --num_epochs ${NUM_EPOCHS} \
     --wandb_run_name ${WAND_RUN_NAME}
