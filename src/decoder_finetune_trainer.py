@@ -139,7 +139,7 @@ class DecoderFinetuneTrainer:
         self.optimizer = AdamW(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 
         self.rouge_metric = get_rouge_scores
-        self.bleu_metric = evaluate.load("bleu")
+        self.bleu_metric = evaluate.load("sacrebleu")
 
     def train(self):
         """
@@ -237,22 +237,21 @@ class DecoderFinetuneTrainer:
         return val_loss, gen_results
 
     def eval_texts(self, predictions, references):
-        bleu_scores = np.array(
-            [
-                self.bleu_metric.compute(predictions=[p], references=[r])["bleu"]
-                if p and r else 0
-                for p, r in zip(predictions, references)
-            ]
-        )
+        bleu_scores = self.bleu_metric.compute(predictions=predictions, references=references)
         rouge_score = self.rouge_metric(predictions, references)
+        print(bleu_scores)
         rouge_score_dict = {k: np.mean(v) for k, v in rouge_score.items()}
         exact_matches = np.array(predictions) == np.array(references)
         gen_metrics = {
-            "bleu": bleu_scores.mean(),
-            "rougeL": rouge_score_dict["rougeL_f"],
-            "rouge1": rouge_score_dict["rouge1_f"],
-            "rouge2": rouge_score_dict["rouge2_f"],
-            "exact_match": sum(exact_matches) / len(exact_matches)
+            "bleu": round(bleu_scores["score"], 2),
+            "bleu1": round(bleu_scores["precisions"][0], 2),
+            "bleu2": round(bleu_scores["precisions"][1], 2),
+            "bleu3": round(bleu_scores["precisions"][2], 2),
+            "bleu4": round(bleu_scores["precisions"][3], 2),
+            "rougeL": round(rouge_score_dict["rougeL_f"]*100, 2),
+            "rouge1": round(rouge_score_dict["rouge1_f"]*100, 2),
+            "rouge2": round(rouge_score_dict["rouge2_f"]*100, 2),
+            "exact_match": round(sum(exact_matches) / len(exact_matches),2)
         }
         # oracle : 70 rougeL
         return gen_metrics
