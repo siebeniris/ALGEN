@@ -2,18 +2,21 @@ import os
 from datasets import load_dataset
 
 
-def load_data_for_decoder(lang="eng-literal"):
-    lang_data_dir = "dataset/Morphology-Matters-corpus"
-    folderpath = lang
+def load_data_for_decoder(lang_data_dir="datasets/finetuning_decoder", folderpath="eng"):
+    # lang_data_dir = "dataset/Morphology-Matters-corpus"
+    # folderpath = lang
 
     lang_data_dir_ = os.path.join(lang_data_dir, folderpath)
     with open(os.path.join(lang_data_dir_, "train.txt")) as f:
         train_data = [x.replace("\n", "") for x in f.readlines()]
 
+    with open(os.path.join(lang_data_dir_, "val.txt")) as f:
+        val_data = [x.replace("\n", "") for x in f.readlines()][:200]
+
     with open(os.path.join(lang_data_dir_, "test.txt")) as f:
         test_data = [x.replace("\n", "") for x in f.readlines()][:200]
-    return train_data, test_data
 
+    return train_data, val_data, test_data
 
 
 def load_data(dataset_name, language, nr_samples=500):
@@ -43,7 +46,7 @@ def load_data(dataset_name, language, nr_samples=500):
 
     elif dataset_name == "Morphology":
         # TODO: refactor here later to have different languages.
-        data_path="/Users/yiyichen/Documents/experiments/datasets/Morphology-Matters-corpus/eng-literal/train.txt"
+        data_path = "/Users/yiyichen/Documents/experiments/datasets/Morphology-Matters-corpus/eng-literal/train.txt"
         print(f"Loading data from {data_path}")
         with open(data_path) as f:
             data = [x.replace("\n", "") for x in f.readlines()]

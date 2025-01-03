@@ -1,3 +1,4 @@
+import json
 import os
 import multiprocessing
 
@@ -9,9 +10,8 @@ from tqdm import tqdm
 import evaluate
 import wandb
 
-from finetune_decoder import DecoderFinetuneModel
+from decoder_finetune import DecoderFinetuneModel
 from createDataset import InversionDataset
-from utils import get_device
 from data_helper import load_data_for_decoder
 from eval_metrics import get_rouge_scores
 
@@ -23,7 +23,8 @@ class DecoderFinetuneTrainer:
                  model_name: str,
                  output_dir: str,
                  max_length: int = 32,
-                 data_folder: str = "eng-literal",
+                 data_folder: str = "datasets/finetuning_decoder",
+                 lang: str = "eng",
                  train_samples: int = 100,
                  val_samples: int = 200,
                  batch_size: int = 8,
@@ -33,29 +34,63 @@ class DecoderFinetuneTrainer:
                  checkpoint_path: str = None
                  ):
 
+        self.args = {
+            "model_name": model_name,
+            "output_dir": output_dir,
+            "max_length": max_length,
+            "data_folder": data_folder,
+            "lang": lang,
+            "train_samples": train_samples,
+            "val_samples": val_samples,
+            "batch_size": batch_size,
+            "learning_rate": learning_rate,
+            "num_epochs": num_epochs,
+            "wandb_run_name": wandb_run_name,
+            "checkpoint_path": checkpoint_path
+        }
+
+        # initialization code
         self.max_length = max_length
         self.model = DecoderFinetuneModel(model_name, self.max_length)
         self.data_folder = data_folder
-
-        if len(data_folder) == 3:
-            self.lang = data_folder
-        else:
-            self.lang = data_folder.split("-")[0]
-
+        self.lang = lang
         self.train_samples = train_samples
         self.val_samples = val_samples
-
         self.device = self.model.device
-        self.output_dir = os.path.join(output_dir,
-            f"train{train_samples}_val{val_samples}_lr{learning_rate}_epochs{num_epochs}")
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.num_epochs = num_epochs
-
         self.tokenizer = self.model.tokenizer
         self.encoder = self.model.encoder_decoder.encoder
         # initialize the resources
         self.initialize_resources()
+
+
+        self.output_dir = os.path.join(output_dir,
+            model_name.replace("/", "_"),
+            f"{lang}_maxlength{max_length}_train{train_samples}_batch_size{batch_size}_lr{learning_rate}_epochs{num_epochs}")
+
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        # continue training
+        # Check if training_args_and_best_models.json exists
+        args_file_path = os.path.join(self.output_dir, "training_args_and_best_models.json")
+        if os.path.exists(args_file_path):
+            print(f"Found existing training arguments and best models at {args_file_path}. Loading...")
+            with open(args_file_path, "r") as f:
+                data = json.load(f)
+            if self.args == data["training_args"]:
+                print(f"Training arguments match. Loading the best model...")
+                self.best_models = data["best_models"]
+                self.load_best_model()  # Load the best model
+            else:
+                print("Training arguments do not match. Finetuning decoder fresh.")
+                self.best_models = []
+                self.best_val_loss = float("inf")
+        else:
+            print(f"No existing training arguments and best models found at {args_file_path}. Starting fresh.")
+            self.best_models = []
+            self.best_val_loss = float("inf")
 
         self.wandb_project = model_name.replace("/", "_") + "_" + wandb_run_name
         if self.wandb_project:
@@ -64,6 +99,7 @@ class DecoderFinetuneTrainer:
                            "model_name": model_name,
                            "max_length": max_length,
                            "data_folder": data_folder,
+                           "lang": lang,
                            "train_samples": train_samples,
                            "val_samples": val_samples,
                            "batch_size": batch_size,
@@ -71,17 +107,11 @@ class DecoderFinetuneTrainer:
                            "num_epochs": num_epochs,
                        })
 
-        # track the best models
-        self.best_models = []
-        self.best_val_loss = float("inf")
-
         if checkpoint_path:
             self.load_model_from_checkpoint(checkpoint_path)
 
     def initialize_resources(self):
-        os.makedirs(self.output_dir, exist_ok=True)
-
-        train_texts, val_texts = load_data_for_decoder(self.data_folder)
+        train_texts, val_texts, _ = load_data_for_decoder(self.data_folder, self.lang)
         train_texts = train_texts[:self.train_samples]
         val_texts = val_texts[:self.val_samples]
         self.train_dataset = InversionDataset(train_texts, self.tokenizer, self.lang, self.encoder,
@@ -185,11 +215,14 @@ class DecoderFinetuneTrainer:
                     generated_ids, skip_special_tokens=True
                 )
                 decoded_text = [text.strip() for text in decoded_text]
-                print(f"decoded text:", decoded_text)
-                print(f"true text:", batch["text"])
+                # print(f"decoded text:", decoded_text)
+                # print(f"true text:", batch["text"])
 
                 all_predictions += decoded_text
                 all_references += batch["text"]
+
+        print(f"decoded text:", all_predictions[:4])
+        print(f"true text:", all_references[:4])
 
         gen_results = self.eval_texts(all_predictions, all_references)
         return val_loss, gen_results
@@ -242,10 +275,22 @@ class DecoderFinetuneTrainer:
 
             # Keep only the top 3 models
             if len(self.best_models) > 3:
+                # pop the last element, which has the biggest val_loss
                 _, oldest_checkpoint = self.best_models.pop()
                 if os.path.exists(oldest_checkpoint):
                     os.remove(oldest_checkpoint)
+
+            # save all arguments and the best models list to a JSON file.
+            args_file_path = os.path.join(self.output_dir, "training_args_and_best_models.json")
+            with open(args_file_path, "w") as f:
+                json.dump({
+                    "training_args": self.args,
+                    "best_models": self.best_models,
+                }, f, indent=4)
+
+
             print(f"Saved new best model with val_loss={val_loss} at {checkpoint_path}")
+            print(f"Saved training arguments and best models at {args_file_path}")
         else:
             print(f"Validation loss did not improve ({val_loss} >= {self.best_val_loss}). Skipping model save.")
 
@@ -268,3 +313,15 @@ class DecoderFinetuneTrainer:
         val_loss = checkpoint.get("val_loss", float("inf"))
 
         print(f"Loaded model from {checkpoint_path} (epoch={epoch}, val_loss={val_loss})")
+
+    def load_best_model(self):
+        """
+        Load the best model from the saved checkpoints.
+        """
+        if not self.best_models:
+            raise ValueError("No best models found. Training might not have completed successfully.")
+
+        # Load the model with the lowest validation loss
+        self.best_val_loss, best_checkpoint_path = self.best_models[0]
+        self.load_model_from_checkpoint(best_checkpoint_path)
+        print(f"Loaded best model with val_loss={self.best_val_loss} from {best_checkpoint_path}")

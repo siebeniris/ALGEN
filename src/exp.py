@@ -25,13 +25,15 @@ def parse_args():
     # Optional arguments with default values
     parser.add_argument("--max_length", type=int, default=32,
                         help="Maximum sequence length for the model (default: 32).")
-    parser.add_argument("--data_folder", type=str, default="eng-literal",
-                        help="Folder containing the training and validation data (default: 'eng-literal').")
+    parser.add_argument("--data_folder", type=str, default="datasets/finetuning_decoder",
+                        help="Folder containing the training, validation, and test data (default: 'datasets/finetuning_decoder').")
+    parser.add_argument("--lang", type=str, default="eng",
+                        help="In which language the data is (default: 'eng').")
     parser.add_argument("--train_samples", type=int, default=100,
                         help="Number of training samples to use (default: 100).")
     parser.add_argument("--val_samples", type=int, default=10,
                         help="Number of validation samples to use (default: 10).")
-    parser.add_argument("--batch_size", type=int, default=8,
+    parser.add_argument("--batch_size", type=int, default=64,
                         help="Batch size for training and validation (default: 8).")
     parser.add_argument("--learning_rate", type=float, default=1e-4,
                         help="Learning rate for the optimizer (default: 1e-4).")
@@ -58,6 +60,7 @@ if __name__ == '__main__':
         output_dir=args.output_dir,
         max_length=args.max_length,
         data_folder=args.data_folder,
+        lang=args.lang,
         train_samples=args.train_samples,
         val_samples=args.val_samples,
         batch_size=args.batch_size,

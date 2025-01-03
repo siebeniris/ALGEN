@@ -21,12 +21,13 @@ MODEL_NAME=$1
 OUTPUT_DIR=$2
 MAX_LENGTH=$3
 DATA_FOLDER=$4
-TRAIN_SAMPLES=$5
-VAL_SAMPLES=$6
-BATCH_SIZE=$7
-LR=$8
-NUM_EPOCHS=$9
-
+LANG=$5
+TRAIN_SAMPLES=$6
+VAL_SAMPLES=$7
+BATCH_SIZE=$8
+LR=$9
+NUM_EPOCHS=${10}
+WAND_RUN_NAME=${11}
 
 
 
@@ -42,9 +43,10 @@ srun singularity exec --nv --cleanenv --bind ${wd}:${wd} ${SIF} \
     --output_dir ${OUTPUT_DIR}\
     --max_length ${MAX_LENGTH} \
     --data_folder ${DATA_FOLDER} \
+    --lang ${LANG}\
     --train_samples ${TRAIN_SAMPLES} \
     --val_samples ${VAL_SAMPLES} \
     --batch_size ${BATCH_SIZE} \
     --learning_rate ${LR} \
     --num_epochs ${NUM_EPOCHS} \
-    --wandb_run_name "decoder_finetuning"
+    --wandb_run_name ${WAND_RUN_NAME}
