@@ -281,8 +281,8 @@ class DecoderFinetuneTrainer:
             self.best_models.append((val_loss, checkpoint_path))
             self.best_models.sort(key=lambda x: x[0])  # Sort by val_loss
 
-            # Keep only the top 3 models
-            if len(self.best_models) > 3:
+            # Keep only the top 2 models
+            if len(self.best_models) > 2:
                 # pop the last element, which has the biggest val_loss
                 _, oldest_checkpoint = self.best_models.pop()
                 if os.path.exists(oldest_checkpoint):
