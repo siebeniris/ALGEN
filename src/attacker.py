@@ -184,8 +184,9 @@ def main(checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_
         "loss": decoderInference.align_metrics
     }
     print(results_dict)
+    source_model_name_ = source_model_name.replace("/", "_")
     print(f"writing the results to {checkpoint_path}")
-    with open(os.path.join(checkpoint_path, "test_results.json"), "w") as f:
+    with open(os.path.join(checkpoint_path, f"test_results_{source_model_name_}.json"), "w") as f:
         json.dump(results_dict, f)
 
 
