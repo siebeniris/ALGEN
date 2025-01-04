@@ -279,13 +279,13 @@ class DecoderFinetuneTrainer:
             )
 
             # Add to the best models list
-            self.best_models.append((val_loss, checkpoint_path))
+            self.best_models.append((val_loss, val_results, checkpoint_path))
             self.best_models.sort(key=lambda x: x[0])  # Sort by val_loss
 
             # Keep only the top 2 models
             if len(self.best_models) > 2:
                 # pop the last element, which has the biggest val_loss
-                _, oldest_checkpoint = self.best_models.pop()
+                _, _, oldest_checkpoint = self.best_models.pop()
                 if os.path.exists(oldest_checkpoint):
                     os.remove(oldest_checkpoint)
 
@@ -330,7 +330,7 @@ class DecoderFinetuneTrainer:
             raise ValueError("No best models found. Training might not have completed successfully.")
 
         # Load the model with the lowest validation loss
-        self.best_val_loss, best_checkpoint_path = self.best_models[0]
+        self.best_val_loss, _,  best_checkpoint_path = self.best_models[0]
         checkpoint = torch.load(best_checkpoint_path, map_location=self.device)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
