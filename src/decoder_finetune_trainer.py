@@ -239,7 +239,7 @@ class DecoderFinetuneTrainer:
     def eval_texts(self, predictions, references):
         bleu_scores = self.bleu_metric.compute(predictions=predictions, references=references)
         rouge_score = self.rouge_metric(predictions, references)
-        print(bleu_scores)
+        # print(bleu_scores)
         rouge_score_dict = {k: np.mean(v) for k, v in rouge_score.items()}
         exact_matches = np.array(predictions) == np.array(references)
         gen_metrics = {

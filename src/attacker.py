@@ -165,32 +165,43 @@ class DecoderInference:
         print(f"Loaded best model with val_loss={self.best_val_loss} from {best_checkpoint_path}")
 
 
-def main(checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50",
-         source_model_name="google/flan-t5-base", train_samples=1000, test_samples=200):
-    # checkpoint_path = "outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50"
-
-    decoderInference = DecoderInference(checkpoint_path, source_model_name,
-                                        train_samples, test_samples)
-
-    test_results = decoderInference.test()
-
-    results_dict = {
-        "train_samples": train_samples,
-        "test_samples": test_samples,
-        "source_model": source_model_name,
-        "source_hidden_dim": decoderInference.source_hidden_dim,
-        "target_hidden_dim": decoderInference.target_hidden_dim,
-        "test_results": test_results,
-        "loss": decoderInference.align_metrics
-    }
-
+def main(
+        checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50"):
+    test_samples = 200
     # write a loop on source model names.
+    source_model_names = [
+        "sentence-transformers/gtr-t5-base",
+        "intfloat/multilingual-e5-base",
+        "google/flan-t5-base",
+        "google-t5/t5-base",
+        "google/mt5-base",
+        "google-bert/bert-base-multilingual-cased"
+    ]
 
-    print(results_dict)
-    source_model_name_ = source_model_name.replace("/", "_")
-    print(f"writing the results to {checkpoint_path}")
-    with open(os.path.join(checkpoint_path, f"test_results_{source_model_name_}.json"), "w") as f:
-        json.dump(results_dict, f)
+    for source_model_name in source_model_names:
+        for train_samples in [100, 500, 1000]:
+            print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
+            decoderInference = DecoderInference(checkpoint_path, source_model_name,
+                                                train_samples, test_samples)
+
+            test_results = decoderInference.test()
+
+            results_dict = {
+                "train_samples": train_samples,
+                "test_samples": test_samples,
+                "source_model": source_model_name,
+                "source_hidden_dim": decoderInference.source_hidden_dim,
+                "target_hidden_dim": decoderInference.target_hidden_dim,
+                "test_results": test_results,
+                "loss": decoderInference.align_metrics
+            }
+            print(results_dict)
+            source_model_name_ = source_model_name.replace("/", "_")
+            print(f"writing the results to {checkpoint_path}")
+            with open(os.path.join(checkpoint_path, f"test_results_{source_model_name_}_train{train_samples}.json"),
+                      "w") as f:
+                json.dump(results_dict, f)
+            print("*"*40)
 
 
 if __name__ == '__main__':
