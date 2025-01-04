@@ -192,7 +192,7 @@ class DecoderFinetuneTrainer:
                     })
 
                 # save the best model
-                self.save_best_model(val_loss, epoch + 1)
+                self.save_best_model(val_loss, gen_results, epoch + 1)
         finally:
             if wandb.run:
                 wandb.finish()
@@ -256,7 +256,7 @@ class DecoderFinetuneTrainer:
         # oracle : 70 rougeL
         return gen_metrics
 
-    def save_best_model(self, val_loss, epoch):
+    def save_best_model(self, val_loss, val_results, epoch):
         """
         Save the best model based on validation loss.
         Keep at most 3 models.
@@ -273,6 +273,7 @@ class DecoderFinetuneTrainer:
                     "model_state_dict": self.model.state_dict(),
                     "optimizer_state_dict": self.optimizer.state_dict(),
                     "val_loss": val_loss,
+                    "val_results": val_results
                 },
                 checkpoint_path,
             )

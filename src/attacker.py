@@ -183,6 +183,9 @@ def main(checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_
         "test_results": test_results,
         "loss": decoderInference.align_metrics
     }
+
+    # write a loop on source model names.
+
     print(results_dict)
     source_model_name_ = source_model_name.replace("/", "_")
     print(f"writing the results to {checkpoint_path}")
