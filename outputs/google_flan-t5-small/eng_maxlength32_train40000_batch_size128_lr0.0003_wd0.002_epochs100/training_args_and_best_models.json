@@ -1,0 +1,31 @@
+{
+    "training_args": {
+        "model_name": "google/flan-t5-small",
+        "output_dir": "outputs",
+        "max_length": 32,
+        "data_folder": "datasets/finetuning_decoder",
+        "lang": "eng",
+        "train_samples": 40000,
+        "val_samples": 200,
+        "batch_size": 128,
+        "learning_rate": 0.0003,
+        "weight_decay": 0.002,
+        "num_epochs": 100,
+        "wandb_run_name": "decoder_finetuning_40k",
+        "checkpoint_path": null
+    },
+    "best_models": [
+        [
+            3.9698100090026855,
+            "outputs/google_flan-t5-small/eng_maxlength32_train40000_batch_size128_lr0.0003_wd0.002_epochs100/checkpoint_epoch_18.pt"
+        ],
+        [
+            4.003840208053589,
+            "outputs/google_flan-t5-small/eng_maxlength32_train40000_batch_size128_lr0.0003_wd0.002_epochs100/checkpoint_epoch_17.pt"
+        ],
+        [
+            4.0238566398620605,
+            "outputs/google_flan-t5-small/eng_maxlength32_train40000_batch_size128_lr0.0003_wd0.002_epochs100/checkpoint_epoch_15.pt"
+        ]
+    ]
+}
