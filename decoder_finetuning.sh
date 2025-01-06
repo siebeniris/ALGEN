@@ -29,6 +29,7 @@ LR=$9
 WEIGHT_DECAY=${10}
 NUM_EPOCHS=${11}
 WAND_RUN_NAME=${12}
+TRAINING_MODE=${13}
 
 
 
@@ -51,4 +52,5 @@ srun singularity exec --nv --cleanenv --bind ${wd}:${wd} ${SIF} \
     --learning_rate ${LR} \
     --weight_decay ${WEIGHT_DECAY} \
     --num_epochs ${NUM_EPOCHS} \
-    --wandb_run_name ${WAND_RUN_NAME}
+    --wandb_run_name ${WAND_RUN_NAME} \
+    --training_mode ${TRAINING_MODE}

@@ -45,7 +45,7 @@ def parse_args():
                         help="Number of epochs to train (default: 50).")
     parser.add_argument("--wandb_run_name", type=str, default="decoder_finetuning",
                         help="Name of the wandb run (default: 'decoder_finetuning').")
-    parser.add_argument("--checkpoint_path", type=str, default=None,
+    parser.add_argument("--training_mode", type=str, default=None,
                         help="Path to a checkpoint to resume training (default: None).")
 
     return parser.parse_args()
@@ -72,7 +72,7 @@ if __name__ == '__main__':
         weight_decay=args.weight_decay,
         num_epochs=args.num_epochs,
         wandb_run_name=args.wandb_run_name,
-        checkpoint_path=args.checkpoint_path
+        training_mode=args.training_mode
     )
 
     # Start training

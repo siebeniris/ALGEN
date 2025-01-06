@@ -32,8 +32,8 @@ class DecoderFinetuneTrainer:
                  weight_decay: float = 1e-5,
                  num_epochs: int = 50,
                  wandb_run_name: str = "decoder_finetuning",
+                 training_mode: str = None,
                  checkpoint_path: str = None,
-                 training_mode: str = None
                  ):
 
         self.args = {
@@ -49,7 +49,7 @@ class DecoderFinetuneTrainer:
             "weight_decay": weight_decay,
             "num_epochs": num_epochs,
             "wandb_run_name": wandb_run_name,
-            "checkpoint_path": checkpoint_path
+            "checkpoint_path": None
         }
 
         # initialization code
