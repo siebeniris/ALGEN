@@ -120,6 +120,7 @@ class DecoderFinetuneTrainer:
     def initialize_resources(self):
         # load dataset from huggingface.
         if "yiyic/" in self.lang:
+            print(f"Loading dataset from {self.lang}")
             dataset = datasets.load_dataset(self.lang)
             train_texts = dataset["train"]["text"]
             val_texts = dataset["dev"]["text"]
