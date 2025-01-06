@@ -8,6 +8,7 @@ from torch.optim import AdamW
 from tqdm import tqdm
 import evaluate
 import wandb
+import datasets
 
 from decoder_finetune import DecoderFinetuneModel
 from createDataset import InversionDataset
@@ -117,7 +118,14 @@ class DecoderFinetuneTrainer:
             self.load_model_from_checkpoint(checkpoint_path)
 
     def initialize_resources(self):
-        train_texts, val_texts, _ = load_data_for_decoder(self.data_folder, self.lang)
+        # load dataset from huggingface.
+        if "yiyic/" in self.lang:
+            dataset = datasets.load_dataset(self.lang)
+            train_texts = dataset["train"]["text"]
+            val_texts = dataset["dev"]["text"]
+        else:
+            train_texts, val_texts, _ = load_data_for_decoder(self.data_folder, self.lang)
+
         train_texts = train_texts[:self.train_samples]
         val_texts = val_texts[:self.val_samples]
         self.train_dataset = InversionDataset(train_texts, self.tokenizer, self.lang, self.encoder,
