@@ -217,7 +217,8 @@ def main(
             print(results_dict)
             source_model_name_ = source_model_name.replace("/", "_")
             print(f"writing the results to {checkpoint_path}")
-            with open(os.path.join(checkpoint_path, f"test_results_{source_model_name_}_train{train_samples}.json"),
+            test_dataset= test_data.replcae("/", "_")
+            with open(os.path.join(checkpoint_path, f"test_results_{test_dataset}_{source_model_name_}_train{train_samples}_.json"),
                       "w") as f:
                 json.dump(results_dict, f)
             print("*"*40)

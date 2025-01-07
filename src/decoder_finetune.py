@@ -21,7 +21,7 @@ class DecoderFinetuneModel(nn.Module):
         encoder_hidden_dim = self.embedder_dim
         self.num_repeat_tokens = max_length
         self.encoder_decoder.config.max_length = max_length
-        self.max_length=max_length
+        self.max_length = max_length
 
         self.embedding_transform = nn.Sequential(
             nn.Linear(self.embedder_dim, bottleneck_dim),
