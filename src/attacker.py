@@ -2,6 +2,8 @@ import json
 import os
 
 import torch
+import datasets
+
 from data_helper import load_data_for_decoder
 from decoder_finetune_trainer import DecoderFinetuneTrainer
 from inversion_utils import set_seed, mean_pool, load_source_encoder_and_tokenizer, get_embeddings_from_encoders
@@ -13,7 +15,8 @@ class DecoderInference:
     def __init__(self, checkpoint_path: str,
                  source_model_name: str,
                  align_train_samples: int,
-                 align_test_samples: int):
+                 align_test_samples: int,
+                 test_dataset: str):
         """
         Initialize the inference class.
         :param checkpoint_path:
@@ -46,9 +49,12 @@ class DecoderInference:
             weight_decay=self.args["weight_decay"],
             num_epochs=self.args["num_epochs"],
             wandb_run_name=self.args["wandb_run_name"],
-            checkpoint_path=None,  # Do not load a checkpoint yet
-            training_mode="test"
+            training_mode="test",
+            checkpoint_path=None  # Do not load a checkpoint yet
+
         )
+        self.test_dataset = test_dataset
+
 
         self.device = self.trainer.device
         # load the best model
@@ -64,7 +70,17 @@ class DecoderInference:
         self.initialize_embeddings()
 
     def initialize_embeddings(self):
-        train_texts, _, test_texts = load_data_for_decoder(self.trainer.data_folder, self.trainer.lang)
+        if "yiyic/" in self.test_dataset:
+            print(f"Loading dataset from {self.test_dataset}")
+            dataset = datasets.load_dataset(self.test_dataset)
+            train_texts = dataset["train"]["text"]
+            test_texts = dataset["test"]["text"]
+
+        else:
+            # make it ["eng", "cmn_hant"]
+            print(f"loading data from {self.trainer.data_folder} and {self.test_dataset}")
+            train_texts, _, test_texts = load_data_for_decoder(self.trainer.data_folder, self.test_dataset)
+
         train_texts = train_texts[:self.align_train_samples]
         test_texts = test_texts[:self.align_test_samples]
 
@@ -166,7 +182,10 @@ class DecoderInference:
 
 
 def main(
-        checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50"):
+        test_data,
+        checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50"
+
+):
     test_samples = 200
     # write a loop on source model names.
     source_model_names = [
@@ -179,10 +198,10 @@ def main(
     ]
 
     for source_model_name in source_model_names:
-        for train_samples in [100, 500, 1000]:
+        for train_samples in [3, 5, 10, 15, 20, 30, 40, 50, 100, 500, 1000]:
             print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
             decoderInference = DecoderInference(checkpoint_path, source_model_name,
-                                                train_samples, test_samples)
+                                                train_samples, test_samples, test_data)
 
             test_results = decoderInference.test()
 

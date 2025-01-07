@@ -17,7 +17,8 @@ export HF_DATASETS_CACHE="${wd}/.cache/datasets"
 export DATASET_CACHE_PATH="${wd}/.cache"
 export DISABLE_APEX=1
 
-CHECKPOINT_PATH=$1
+test_dataset=$1
+CHECKPOINT_PATH=$2
 
 
 SIF=/home/cs.aau.dk/ng78zb/pytorch_23.10-py3.sif
@@ -25,4 +26,4 @@ echo "sif ${SIF}"
 
 
 srun singularity exec --nv --cleanenv --bind ${wd}:${wd} ${SIF} \
-    python src/attacker.py ${CHECKPOINT_PATH}
+    python src/attacker.py ${test_dataset} ${CHECKPOINT_PATH}
