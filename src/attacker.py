@@ -172,7 +172,10 @@ class DecoderInference:
             raise ValueError("No best models found. Training might not have completed successfully.")
 
         # Load the model with the lowest validation loss
-        self.best_val_loss, _,  best_checkpoint_path = self.best_models[0]
+        if "yiyic/" in self.checkpoint_path:
+            self.best_val_loss, _,  best_checkpoint_path = self.best_models[0]
+        else:
+            self.best_val_loss, best_checkpoint_path = self.best_models[0]
         checkpoint = torch.load(best_checkpoint_path, map_location=self.device)
         self.trainer.model.load_state_dict(checkpoint["model_state_dict"])
         self.trainer.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
