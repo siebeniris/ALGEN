@@ -201,7 +201,7 @@ def main(
     ]
 
     for source_model_name in source_model_names:
-        for train_samples in [3, 5, 10, 15, 20, 30, 40, 50, 100, 500, 1000]:
+        for train_samples in [1, 3, 5, 10, 15, 20, 30, 40, 50, 100, 500, 1000]:
             print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
             decoderInference = DecoderInference(checkpoint_path, source_model_name,
                                                 train_samples, test_samples, test_data)
@@ -220,7 +220,7 @@ def main(
             print(results_dict)
             source_model_name_ = source_model_name.replace("/", "_")
             print(f"writing the results to {checkpoint_path}")
-            test_dataset= test_data.replace("/", "_")
+            test_dataset = test_data.replace("/", "_")
             with open(os.path.join(checkpoint_path, f"test_results_{test_dataset}_{source_model_name_}_train{train_samples}_.json"),
                       "w") as f:
                 json.dump(results_dict, f)

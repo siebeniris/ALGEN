@@ -69,9 +69,10 @@ class DecoderFinetuneTrainer:
         # initialize the resources
         self.initialize_resources()
 
+        lang_filename = self.lang.replace("/", "_")
         self.output_dir = os.path.join(output_dir,
                                        model_name.replace("/", "_"),
-                                       f"{lang}_maxlength{max_length}_train{train_samples}_batch_size{batch_size}_lr{learning_rate}_wd{weight_decay}_epochs{num_epochs}")
+                                       f"{lang_filename}_maxlength{max_length}_train{train_samples}_batch_size{batch_size}_lr{learning_rate}_wd{weight_decay}_epochs{num_epochs}")
 
         os.makedirs(self.output_dir, exist_ok=True)
 
@@ -98,7 +99,6 @@ class DecoderFinetuneTrainer:
             self.best_val_loss = float("inf")
 
         if training_mode != "test":
-
             self.wandb_project = model_name.replace("/", "_") + "_" + wandb_run_name
             if self.wandb_project:
                 wandb.init(project=self.wandb_project, name=wandb_run_name,
