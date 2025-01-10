@@ -1,8 +1,7 @@
 import torch
 from transformers.modeling_outputs import BaseModelOutput
-from transformers import T5ForConditionalGeneration, AutoModel, AutoTokenizer
 from torch.nn import LayerNorm
-from transformers  import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, AutoModel
 import numpy as np
 import random
 
@@ -135,6 +134,12 @@ def load_encoder_decoder_and_tokenizer(model_name, device):
 
 
 def load_source_encoder_and_tokenizer(model_name, device):
+    """
+    Load source encoder, not as a seq2selm
+    :param model_name:
+    :param device:
+    :return:
+    """
     encoder = AutoModel.from_pretrained(model_name)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     fill_in_pad_eos_token(tokenizer)
