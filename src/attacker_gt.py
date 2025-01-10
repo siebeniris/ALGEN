@@ -1,14 +1,21 @@
 import json
 import os
 
+import numpy as np
+import pandas as pd
 import torch
 import datasets
 
 from data_helper import load_data_for_decoder
 from decoder_finetune_trainer import DecoderFinetuneTrainer
-from inversion_utils import set_seed, mean_pool, load_source_encoder_and_tokenizer, get_embeddings_from_encoders
+from inversion_utils import (set_seed, mean_pool,
+                             get_Y_tokens_from_tokenizer,
+                             get_Y_embeddings_from_tokens,
+                             get_mean_X,
+                             load_source_encoder_and_tokenizer)
 from utils import get_device
 from eval_metrics import eval_embeddings
+from tqdm import tqdm
 
 
 class DecoderInference:
@@ -54,7 +61,7 @@ class DecoderInference:
 
         )
         self.test_dataset = test_dataset
-
+        self.source_model_name = source_model_name
 
         self.device = self.trainer.device
         # load the best model
@@ -74,62 +81,87 @@ class DecoderInference:
             print(f"Loading dataset from {self.test_dataset}")
             dataset = datasets.load_dataset(self.test_dataset)
             train_texts = dataset["train"]["text"]
+            val_texts = dataset["dev"]["text"]
             test_texts = dataset["test"]["text"]
+
 
         else:
             # make it ["eng", "cmn_hant"]
             print(f"loading data from {self.trainer.data_folder} and {self.test_dataset}")
-            train_texts, _, test_texts = load_data_for_decoder(self.trainer.data_folder, self.test_dataset)
+            train_texts, val_texts, test_texts = load_data_for_decoder(self.trainer.data_folder, self.test_dataset)
 
         train_texts = train_texts[:self.align_train_samples]
+        val_texts = val_texts[:self.align_test_samples]
         test_texts = test_texts[:self.align_test_samples]
 
-        X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens \
-            = get_embeddings_from_encoders(
-            train_texts, test_texts,
-            self.source_encoder, self.target_encoder,
-            self.source_tokenizer, self.target_tokenizer,
+        # get y tokens and true texts first, then get x tokens and texts, because no tokenization here with max_length is needed.
+        Y_tokens, Y_val_tokens, Y_test_tokens = get_Y_tokens_from_tokenizer(
+            train_texts,
+            val_texts,
+            test_texts,
+            self.target_tokenizer,
             max_length=self.trainer.max_length
         )
 
-        self.source_hidden_dim = X.shape[-1]
-        self.target_hidden_dim = Y.shape[-1]
+        true_train_texts = self.target_tokenizer.batch_decode(Y_tokens["input_ids"], skip_special_tokens=True)
+        true_val_texts = self.target_tokenizer.batch_decode(Y_val_tokens["input_ids"], skip_special_tokens=True)
+        true_test_texts = self.target_tokenizer.batch_decode(Y_test_tokens["input_ids"], skip_special_tokens=True)
+        print(f"train data {len(true_train_texts)}, val {len(true_val_texts)}, test {len(true_test_texts)}")
 
-        X_attention_mask = X_tokens["attention_mask"]
-        Y_attention_mask = Y_tokens["attention_mask"]
-        X_test_attention_mask = X_test_tokens["attention_mask"]
-        Y_test_attention_mask = X_test_tokens["attention_mask"]  # what we need for inference.
+        if self.source_model_name in ["text-embedding-3-large", "text-embedding-ada-002"]:
+            vector_dir = f"datasets/vectors/{self.source_model_name}"
+            target_model_name_ = self.trainer.model_name.replace("/", "_")
+            dataset_name_ = self.test_dataset.replace("/", "_")
+            source_embeddings_dir = os.path.join(vector_dir, target_model_name_, dataset_name_,
+                                                f"vecs_maxlength{self.trainer.max_length}.npz")
+            print(f"retrieving vectors {self.source_model_name} from {source_embeddings_dir}")
+            vecs = np.load(source_embeddings_dir)
+            X_pooled_train = torch.tensor(vecs["train"], dtype=torch.float32).to(self.device)
+            X_pooled_val = torch.tensor(vecs["train"], dtype=torch.float32).to(self.device)
+            X_pooled_test = torch.tensor(vecs["train"], dtype=torch.float32).to(self.device)
+        else:
 
-        #  change here use true texts?
+            # get x embeddings.
+            # handle texts one by one because we only get mean_pooled embeddings.
+            # embeddings have the shape Bx n (batch_size, n)
+            X_pooled_train = get_mean_X(true_train_texts, self.source_tokenizer, self.source_encoder, self.device)
+            X_pooled_val = get_mean_X(true_val_texts, self.source_tokenizer, self.source_encoder, self.device)
+            X_pooled_test = get_mean_X(true_test_texts, self.source_tokenizer, self.source_encoder, self.device)
 
-        # mean pooled embeddings.
-        X_pooled = mean_pool(X, X_attention_mask)
-        Y_pooled = mean_pool(Y, Y_attention_mask)
-        X_test_pooled = mean_pool(X_test, X_test_attention_mask)
-        Y_test_pooled = mean_pool(Y_test, Y_test_attention_mask)
+        print(f"X shape train {X_pooled_train.shape}, val {X_pooled_val}, test {X_pooled_test}")
+
+        Y_pooled_train = get_Y_embeddings_from_tokens(Y_tokens, self.target_encoder)
+        Y_pooled_val = get_Y_embeddings_from_tokens(Y_val_tokens, self.target_encoder)
+        Y_pooled_test = get_Y_embeddings_from_tokens(Y_test_tokens, self.target_encoder)
 
         # train data to align.
-        X_aligned, T = self.mapping_X_to_Y_pooled(X_pooled, Y_pooled)
-        X_test_aligned = X_test_pooled @ T
+        X_aligned, T = self.mapping_X_to_Y_pooled(X_pooled_train, Y_pooled_train)
+        self.source_hidden_dim, self.target_hidden_dim = T.shape
+
+        X_val_aligned = X_pooled_val @ T
+        X_test_aligned = X_pooled_test @ T
 
         # test alignment on X_test and Y_test
-        X_Y_cos, X_Y_mseloss = eval_embeddings(X_aligned, Y_pooled)
-        X_Y_test_cos, X_Y_test_mseloss = eval_embeddings(X_test_aligned, Y_test_pooled)
+        X_Y_cos, X_Y_mseloss = eval_embeddings(X_aligned, Y_pooled_train)
+        X_Y_test_cos, X_Y_test_mseloss = eval_embeddings(X_test_aligned, Y_pooled_test)
+        X_Y_val_cos, X_Y_val_mseloss = eval_embeddings(X_val_aligned, Y_pooled_val)
+
         self.align_metrics = {
             "X_Y_COS": X_Y_cos.item(),
             "X_Y_MSEloss": X_Y_mseloss.item(),
             "X_Y_test_COS": X_Y_test_cos.item(),
-            "X_Y_test_MSEloss": X_Y_test_mseloss.item()
+            "X_Y_test_MSEloss": X_Y_test_mseloss.item(),
+            "X_Y_val_COS": X_Y_val_cos.item(),
+            "X_Y_val_MSEloss": X_Y_val_mseloss.item()
         }
         # print(self.align_metrics)
 
         # get the labels, hidden_states, and attention_mask
-        true_texts = self.target_tokenizer.batch_decode(Y_test_tokens["input_ids"], skip_special_tokens=True)
 
         self.test_data = {
             "hidden_states": X_test_aligned,
-            "attention_mask": Y_test_attention_mask,
-            "texts": true_texts
+            "attention_mask": Y_test_tokens["attention_mask"],
+            "texts": true_test_texts
         }
 
         # print(self.test_data)
@@ -158,7 +190,7 @@ class DecoderInference:
         print("true: ", all_references[:4])
 
         test_gen_results = self.trainer.eval_texts(all_predictions, all_references)
-        return test_gen_results
+        return test_gen_results, all_predictions, all_references
 
     def mapping_X_to_Y_pooled(self, X, Y):
         # mappting with normal equation.
@@ -175,7 +207,7 @@ class DecoderInference:
 
         # Load the model with the lowest validation loss
         if "yiyic/" in self.checkpoint_path:
-            self.best_val_loss, _,  best_checkpoint_path = self.best_models[0]
+            self.best_val_loss, _, best_checkpoint_path = self.best_models[0]
         else:
             self.best_val_loss, best_checkpoint_path = self.best_models[0]
         checkpoint = torch.load(best_checkpoint_path, map_location=self.device)
@@ -199,7 +231,9 @@ def main(
         "google/flan-t5-base",
         "google-t5/t5-base",
         "google/mt5-base",
-        "google-bert/bert-base-multilingual-cased"
+        "google-bert/bert-base-multilingual-cased",
+        "text-embedding-ada-002",
+        "text-embedding-3-large"
     ]
 
     for source_model_name in source_model_names:
@@ -208,25 +242,34 @@ def main(
             decoderInference = DecoderInference(checkpoint_path, source_model_name,
                                                 train_samples, test_samples, test_data)
 
-            test_results = decoderInference.test()
+            test_results, preds, references = decoderInference.test()
+            #TODO: add translation here.
+
+
+            df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
 
             results_dict = {
                 "train_samples": train_samples,
                 "test_samples": test_samples,
                 "source_model": source_model_name,
-                "source_hidden_dim": decoderInference.source_hidden_dim,
-                "target_hidden_dim": decoderInference.target_hidden_dim,
+                "source_dim": decoderInference.source_hidden_dim,
+                "target_dim": decoderInference.target_hidden_dim,
                 "test_results": test_results,
                 "loss": decoderInference.align_metrics
             }
             print(results_dict)
             source_model_name_ = source_model_name.replace("/", "_")
-            print(f"writing the results to {checkpoint_path}")
+
             test_dataset = test_data.replace("/", "_")
-            with open(os.path.join(checkpoint_path, f"test_results_{test_dataset}_{source_model_name_}_train{train_samples}_.json"),
-                      "w") as f:
+
+            output_dir = os.path.join(checkpoint_path,
+                                      f"attack_{test_dataset}_{source_model_name_}_train{train_samples}")
+            print(f"writing the results to {output_dir}")
+            os.makedirs(output_dir, exist_ok=True)
+            df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
+            with open(os.path.join(output_dir, "results.json"), "w") as f:
                 json.dump(results_dict, f)
-            print("*"*40)
+            print("*" * 40)
 
 
 if __name__ == '__main__':

@@ -26,4 +26,4 @@ echo "sif ${SIF}"
 
 
 srun singularity exec --nv --cleanenv --bind ${wd}:${wd} ${SIF} \
-    python src/attacker.py ${test_dataset} ${CHECKPOINT_PATH}
+    python src/attacker_gt.py ${test_dataset} ${CHECKPOINT_PATH}

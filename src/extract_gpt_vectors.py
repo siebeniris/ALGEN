@@ -91,10 +91,10 @@ def get_vectors_gpt_per_model_dataset(
     val_vectors = retrieve_openai_vector(true_val_texts, gpt_embedder)
     test_vectors = retrieve_openai_vector(true_test_texts, gpt_embedder)
 
-    print(f"vectors shape: train {train_vectors.shape}, dev {val_vectors}, test {test_vectors.shape}")
+    print(f"vectors shape: train {train_vectors.shape}, dev {val_vectors.shape}, test {test_vectors.shape}")
     save_path = os.path.join(outputdir, f"vecs_maxlength{max_length}.npz")
     print(f"saving vectors to {save_path}")
-    np.savez_compressed(save_path)
+    np.savez_compressed(save_path, train=train_vectors, dev=val_vectors, test=test_vectors)
 
 
 if __name__ == '__main__':
@@ -104,7 +104,8 @@ if __name__ == '__main__':
 
     dataset_names = ["yiyic/mmarco_english", "yiyic/mmarco_french", "yiyic/mmarco_spanish", "yiyic/mmarco_german"]
     datasets_extra = ["yiyic/mmarco_chinese", "yiyic/mmarco_vietnamese"]
-    gpt_embedders = ["text-embedding-ada-002"]
+    gpt_embedders = ["text-embedding-ada-002", "text-embedding-3-large"]
+    # gpt_embedders = ["text-embedding-3-large"]
     for attacker_model in attacker_models:
         tokenizer = load_tokenizer(model_name=attacker_model)
         for gpt_embedder in gpt_embedders:

@@ -4,7 +4,7 @@ from torch.nn import LayerNorm
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, AutoModel
 import numpy as np
 import random
-
+from tqdm import tqdm
 import transformers.models.t5.modeling_t5 as t5_modeling
 
 t5_modeling.T5LayerNorm = LayerNorm
@@ -13,6 +13,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 # set up rouge scores
 
 cos = torch.nn.CosineSimilarity(dim=1)
+
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -133,6 +134,22 @@ def load_encoder_decoder_and_tokenizer(model_name, device):
     return encoder_decoder, tokenizer
 
 
+def get_Y_tokens_from_tokenizer(train_data, val_data, test_data, target_tokenizer, max_length=32):
+    Y_tokens = add_punctuation_token_ids(train_data, target_tokenizer, max_length, device)
+    Y_val_tokens = add_punctuation_token_ids(val_data, target_tokenizer, max_length, device)
+    Y_test_tokens = add_punctuation_token_ids(test_data, target_tokenizer, max_length, device)
+    return Y_tokens, Y_val_tokens, Y_test_tokens
+
+
+def get_Y_embeddings_from_tokens(tokens, target_encoder):
+    # get  Y embeddings directly from its tokens.
+    # tokens = tokens.to(device)
+    with torch.no_grad():
+        Y = target_encoder(**tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+    mean_pooled = mean_pool(Y, tokens["attention_mask"])
+    return mean_pooled
+
+
 def load_source_encoder_and_tokenizer(model_name, device):
     """
     Load source encoder, not as a seq2selm
@@ -147,7 +164,6 @@ def load_source_encoder_and_tokenizer(model_name, device):
 
     encoder = encoder.to(device)
     return encoder, tokenizer
-
 
 
 def load_tokenizer_models(source_model_name, target_model_name):
@@ -183,7 +199,7 @@ def load_tokenizer_models(source_model_name, target_model_name):
 
 # vec2text/models/model_utils.py
 def mean_pool(
-    hidden_states: torch.Tensor, attention_mask: torch.Tensor
+        hidden_states: torch.Tensor, attention_mask: torch.Tensor
 ) -> torch.Tensor:
     B, S, D = hidden_states.shape
     unmasked_outputs = hidden_states * attention_mask[..., None]
@@ -219,11 +235,10 @@ def get_embeddings(train_data, test_data,
     return X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens
 
 
-
 def get_embeddings_from_encoders(train_data, test_data,
-                   source_model, target_model,
-                   source_tokenizer, target_tokenizer,
-                   max_length=32, noise_level=0):
+                                 source_model, target_model,
+                                 source_tokenizer, target_tokenizer,
+                                 max_length=32, noise_level=0):
     X_tokens = add_punctuation_token_ids(train_data, source_tokenizer, max_length, device)
     Y_tokens = add_punctuation_token_ids(train_data, target_tokenizer, max_length, device)
     X_test_tokens = add_punctuation_token_ids(test_data, source_tokenizer, max_length, device)
@@ -246,3 +261,19 @@ def get_embeddings_from_encoders(train_data, test_data,
         X_test += noise_level * torch.rand(X_test.shape)
     return X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens
 
+
+def get_mean_X(texts, tokenizer, model, device):
+    X_mean_l = []
+    for text in tqdm(texts):
+        tokens = tokenizer(text)
+        input_ids = torch.tensor(tokens['input_ids']).unsqueeze(0).to(device)
+        attention_mask = torch.tensor(tokens['attention_mask']).unsqueeze(0).to(device)
+        with torch.no_grad():
+            if model.config.is_encoder_decoder:
+                X = model.encoder(input_ids, attention_mask=attention_mask).last_hidden_state
+            else:
+                X = model(input_ids, attention_mask=attention_mask).last_hidden_state
+        X_mean = mean_pool(X, attention_mask)
+        X_mean_l.append(X_mean)
+    X_mean_tensor = torch.stack(X_mean_l, dim=0)
+    return X_mean_tensor.squeeze(1)
