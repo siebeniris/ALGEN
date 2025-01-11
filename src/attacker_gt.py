@@ -206,7 +206,7 @@ class DecoderInference:
             raise ValueError("No best models found. Training might not have completed successfully.")
 
         # Load the model with the lowest validation loss
-        if "yiyic/" in self.checkpoint_path:
+        if "yiyic" in self.checkpoint_path:
             self.best_val_loss, _, best_checkpoint_path = self.best_models[0]
         else:
             self.best_val_loss, best_checkpoint_path = self.best_models[0]
