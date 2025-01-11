@@ -72,7 +72,12 @@ class DecoderInference:
 
         self.target_encoder = self.trainer.encoder
         self.target_tokenizer = self.trainer.tokenizer
-        self.source_encoder, self.source_tokenizer = load_source_encoder_and_tokenizer(source_model_name, self.device)
+        if self.source_model_name in ["text-embedding-3-large", "text-embedding-ada-002"]:
+            print("Use the extracted embeddings...")
+            self.source_encoder = None
+            self.source_tokenizer =None
+        else:
+            self.source_encoder, self.source_tokenizer = load_source_encoder_and_tokenizer(source_model_name, self.device)
 
         self.initialize_embeddings()
 
@@ -233,48 +238,50 @@ def main(
         "google/mt5-base",
         "google-bert/bert-base-multilingual-cased",
         "text-embedding-ada-002",
-        "text-embedding-3-large"
+        "text-embedding-3-large",
+        "sentence-transformers/all-MiniLM-L6-v2" # sbert
     ]
 
     for source_model_name in source_model_names:
         for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
-            print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
-            decoderInference = DecoderInference(checkpoint_path, source_model_name,
-                                                train_samples, test_samples, test_data)
-
-            test_results, preds, references = decoderInference.test()
-
-            #TODO: add translation here.
-            # translate the decoded into fine-tuned language.
-            # extract language from checkpoints and dataset name
-            # use easy nmt
-
-
-            df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
-
-            results_dict = {
-                "train_samples": train_samples,
-                "test_samples": test_samples,
-                "source_model": source_model_name,
-                "source_dim": decoderInference.source_hidden_dim,
-                "target_dim": decoderInference.target_hidden_dim,
-                "test_results": test_results,
-                "loss": decoderInference.align_metrics
-            }
-            print(results_dict)
             source_model_name_ = source_model_name.replace("/", "_")
 
             test_dataset = test_data.replace("/", "_")
 
             output_dir = os.path.join(checkpoint_path,
-                                    f"attack_{test_dataset}_{source_model_name_}_train{train_samples}")
+                                      f"attack_{test_dataset}_{source_model_name_}_train{train_samples}")
 
-            print(f"writing the results to {output_dir}")
-            os.makedirs(output_dir, exist_ok=True)
-            df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
-            with open(os.path.join(output_dir, "results.json"), "w") as f:
-                json.dump(results_dict, f)
-            print("*" * 40)
+            if not os.path.exists(output_dir):
+
+                print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
+                decoderInference = DecoderInference(checkpoint_path, source_model_name,
+                                                    train_samples, test_samples, test_data)
+
+                test_results, preds, references = decoderInference.test()
+                #TODO: add translation here.
+                # translate the decoded into fine-tuned language.
+                # extract language from checkpoints and dataset name
+                # use easy nmt
+
+                df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
+
+                results_dict = {
+                    "train_samples": train_samples,
+                    "test_samples": test_samples,
+                    "source_model": source_model_name,
+                    "source_dim": decoderInference.source_hidden_dim,
+                    "target_dim": decoderInference.target_hidden_dim,
+                    "test_results": test_results,
+                    "loss": decoderInference.align_metrics
+                }
+                print(results_dict)
+
+                print(f"writing the results to {output_dir}")
+                os.makedirs(output_dir, exist_ok=True)
+                df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
+                with open(os.path.join(output_dir, "results.json"), "w") as f:
+                    json.dump(results_dict, f)
+                print("*" * 40)
 
 
 if __name__ == '__main__':

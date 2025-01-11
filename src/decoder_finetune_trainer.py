@@ -71,8 +71,8 @@ class DecoderFinetuneTrainer:
 
         lang_filename = self.lang.replace("/", "_")
         self.output_dir = os.path.join(output_dir,
-                                       model_name.replace("/", "_"),
-                                       f"{lang_filename}_maxlength{max_length}_train{train_samples}_batch_size{batch_size}_lr{learning_rate}_wd{weight_decay}_epochs{num_epochs}")
+                                    model_name.replace("/", "_"),
+                                    f"{lang_filename}_maxlength{max_length}_train{train_samples}_batch_size{batch_size}_lr{learning_rate}_wd{weight_decay}_epochs{num_epochs}")
 
         os.makedirs(self.output_dir, exist_ok=True)
 
