@@ -227,9 +227,7 @@ class DecoderInference:
 
 
 def main(
-        test_data,
         checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50"
-
 ):
     test_samples = 200
     if "flan-t5-small" in checkpoint_path:
