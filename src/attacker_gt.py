@@ -231,9 +231,9 @@ def main(
 ):
     test_samples = 200
     if "flan-t5-small" in checkpoint_path:
-        datasets_names = ["yiyic/mmarco_english", "yiyic/mmarco_german", "yiyic/mmarco_spanish", "yiyic/mmarco_french"]
+        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german", "yiyic/mmarco_spanish", "yiyic/mmarco_french"]
     else:
-        datasets_names = ["yiyic/mmarco_english", "yiyic/mmarco_german", "yiyic/mmarco_spanish", "yiyic/mmarco_french",
+        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german", "yiyic/mmarco_spanish", "yiyic/mmarco_french",
                           "yiyic/mmarco_chinese", "yiyic/mmarco_vietnamese"]
 
     # write a loop on source model names.

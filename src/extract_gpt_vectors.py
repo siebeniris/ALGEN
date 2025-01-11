@@ -102,8 +102,10 @@ if __name__ == '__main__':
     attacker_models = ["google/flan-t5-small", "google/umt5-small", "google/mt5-small"]
     max_length = 32
 
-    dataset_names = ["yiyic/mmarco_english", "yiyic/mmarco_french", "yiyic/mmarco_spanish", "yiyic/mmarco_german"]
-    datasets_extra = ["yiyic/mmarco_chinese", "yiyic/mmarco_vietnamese"]
+    # dataset_names = ["yiyic/mmarco_english", "yiyic/mmarco_french", "yiyic/mmarco_spanish", "yiyic/mmarco_german"]
+    # datasets_extra = ["yiyic/mmarco_chinese", "yiyic/mmarco_vietnamese"]
+    dataset_names = ["yiyic/multiHPLT_english"]
+    datasets_extra = dataset_names
     gpt_embedders = ["text-embedding-ada-002", "text-embedding-3-large"]
     # gpt_embedders = ["text-embedding-3-large"]
     for attacker_model in attacker_models:
