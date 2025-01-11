@@ -250,9 +250,10 @@ def main(
     ]
 
     for source_model_name in source_model_names:
-        for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
-            source_model_name_ = source_model_name.replace("/", "_")
-            for test_data in datasets_names:
+        for test_data in datasets_names:
+            for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
+
+                source_model_name_ = source_model_name.replace("/", "_")
                 test_dataset_ = test_data.replace("/", "_")
                 output_dir = os.path.join(checkpoint_path,
                                           f"attack_{test_dataset_}_{source_model_name_}_train{train_samples}")
