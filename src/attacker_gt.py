@@ -60,6 +60,7 @@ class DecoderInference:
             checkpoint_path=None  # Do not load a checkpoint yet
 
         )
+        self.target_model_name = self.args["model_name"]
         self.test_dataset = test_dataset
         self.source_model_name = source_model_name
 
@@ -115,7 +116,7 @@ class DecoderInference:
 
         if self.source_model_name in ["text-embedding-3-large", "text-embedding-ada-002"]:
             vector_dir = f"datasets/vectors/{self.source_model_name}"
-            target_model_name_ = self.trainer.model_name.replace("/", "_")
+            target_model_name_ = self.target_model_name.replace("/", "_")
             dataset_name_ = self.test_dataset.replace("/", "_")
             source_embeddings_dir = os.path.join(vector_dir, target_model_name_, dataset_name_,
                                                 f"vecs_maxlength{self.trainer.max_length}.npz")
