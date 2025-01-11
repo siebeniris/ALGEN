@@ -8,7 +8,7 @@ import datasets
 
 from data_helper import load_data_for_decoder
 from decoder_finetune_trainer import DecoderFinetuneTrainer
-from inversion_utils import (set_seed, mean_pool,
+from inversion_utils import (set_seed,
                              get_Y_tokens_from_tokenizer,
                              get_Y_embeddings_from_tokens,
                              get_mean_X,
@@ -237,13 +237,17 @@ def main(
     ]
 
     for source_model_name in source_model_names:
-        for train_samples in [1, 3, 5, 10, 15, 20, 30, 40, 50, 100, 500, 1000]:
+        for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
             print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
             decoderInference = DecoderInference(checkpoint_path, source_model_name,
                                                 train_samples, test_samples, test_data)
 
             test_results, preds, references = decoderInference.test()
+
             #TODO: add translation here.
+            # translate the decoded into fine-tuned language.
+            # extract language from checkpoints and dataset name
+            # use easy nmt
 
 
             df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
@@ -263,7 +267,8 @@ def main(
             test_dataset = test_data.replace("/", "_")
 
             output_dir = os.path.join(checkpoint_path,
-                                      f"attack_{test_dataset}_{source_model_name_}_train{train_samples}")
+                                    f"attack_{test_dataset}_{source_model_name_}_train{train_samples}")
+
             print(f"writing the results to {output_dir}")
             os.makedirs(output_dir, exist_ok=True)
             df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
