@@ -56,8 +56,8 @@ if __name__ == '__main__':
 
     set_seed(42)
 
-    mp.set_start_method("spawn", force=True)
-    mp.spawn(train_process, args=(), nprocs=4)
+    # mp.set_start_method("spawn", force=True)
+    # mp.spawn(train_process, args=(), nprocs=4)
 
     trainer = DecoderFinetuneTrainer(
         model_name=args.model_name,
