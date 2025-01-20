@@ -31,7 +31,7 @@ WAND_RUN_NAME=${12}
 TRAINING_MODE=${13}
 
 
-export OPENAI_API_KEY="sk-proj-9GTzPysUslKPyHRxDWUxT3BlbkFJt9KdXvzK18UtedxlsWqK"
+export OPENAI_API_KEY="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"
 export HF_HOME="/scratch/project_465001270/.cache"
 export HF_DATASETS_CACHE="/scratch/project_465001270/.cache/datasets"
 export DATASET_CACHE_PATH="/scratch/project_465001270/.cache"
