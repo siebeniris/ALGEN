@@ -36,6 +36,7 @@ export HF_HOME="/scratch/project_465001270/.cache"
 export HF_DATASETS_CACHE="/scratch/project_465001270/.cache/datasets"
 export DATASET_CACHE_PATH="/scratch/project_465001270/.cache"
 export WANDB_CACHE_DIR="/scratch/project_465001270/.cache/wandb/artifcats/"
+export HUGGINGFACE_HUB_TOKEN="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"
 
 export NCCL_P2P_LEVEL=PHB
 export NCCL_DEBUG=INFO
