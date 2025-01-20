@@ -3,6 +3,7 @@ from typing import Dict
 import torch
 import torch.nn as nn
 from torch.nn import LayerNorm
+import torch.nn.functional as F
 import transformers.models.t5.modeling_t5 as t5_modeling
 
 from inversion_utils import mean_pool, load_encoder_decoder_and_tokenizer
@@ -36,7 +37,11 @@ class DecoderFinetuneModel(nn.Module):
         # embeddings = mean_pool(hidden_states, attention_mask)
         embeddings = embeddings.to(self.device)
 
+        # normalize embeddings.
+        embeddings = F.normalize(embeddings, p=2, dim=1)
+
         repeated_embeddings = self.embedding_transform(embeddings)
+
         embeddings = repeated_embeddings.reshape(
             (*repeated_embeddings.shape[:-1], self.num_repeat_tokens, -1)
         )
