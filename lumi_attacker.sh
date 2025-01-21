@@ -1,5 +1,5 @@
 #!/bin/bash -e
-#SBATCH --job-name=fewshot-inverter
+#SBATCH --job-name=fewshot-attacker
 #SBATCH --account=project_465001270
 #SBATCH --partition=small-g
 #SBATCH --gpus-per-node=1
