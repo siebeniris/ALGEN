@@ -124,6 +124,7 @@ class DecoderInference:
             print(f"retrieving vectors {self.source_model_name} from {source_embeddings_dir}")
             vecs = np.load(source_embeddings_dir)
             # get the sample size accordingly
+            # the embeddings are already normalized.
             X_pooled_train = torch.tensor(vecs["train"][:self.align_train_samples], dtype=torch.float32).to(self.device)
             X_pooled_val = torch.tensor(vecs["train"][:self.align_test_samples], dtype=torch.float32).to(self.device)
             X_pooled_test = torch.tensor(vecs["train"][:self.align_test_samples], dtype=torch.float32).to(self.device)
@@ -132,15 +133,17 @@ class DecoderInference:
             # get x embeddings.
             # handle texts one by one because we only get mean_pooled embeddings.
             # embeddings have the shape Bx n (batch_size, n)
-            X_pooled_train = get_mean_X(true_train_texts, self.source_tokenizer, self.source_encoder, self.device)
-            X_pooled_val = get_mean_X(true_val_texts, self.source_tokenizer, self.source_encoder, self.device)
-            X_pooled_test = get_mean_X(true_test_texts, self.source_tokenizer, self.source_encoder, self.device)
+            # added normalization,
+            X_pooled_train = get_mean_X(true_train_texts, self.source_tokenizer, self.source_encoder, self.device, normalization=True)
+            X_pooled_val = get_mean_X(true_val_texts, self.source_tokenizer, self.source_encoder, self.device, normalization=True)
+            X_pooled_test = get_mean_X(true_test_texts, self.source_tokenizer, self.source_encoder, self.device, normalization=True)
+
 
         print(f"X shape train {X_pooled_train.shape}, val {X_pooled_val.shape}, test {X_pooled_test.shape}")
 
-        Y_pooled_train = get_Y_embeddings_from_tokens(Y_tokens, self.target_encoder)
-        Y_pooled_val = get_Y_embeddings_from_tokens(Y_val_tokens, self.target_encoder)
-        Y_pooled_test = get_Y_embeddings_from_tokens(Y_test_tokens, self.target_encoder)
+        Y_pooled_train = get_Y_embeddings_from_tokens(Y_tokens, self.target_encoder, normalization=True)
+        Y_pooled_val = get_Y_embeddings_from_tokens(Y_val_tokens, self.target_encoder, normalization=True)
+        Y_pooled_test = get_Y_embeddings_from_tokens(Y_test_tokens, self.target_encoder, normalization=True)
 
         # train data to align.
         X_aligned, T = self.mapping_X_to_Y_pooled(X_pooled_train, Y_pooled_train)
@@ -238,12 +241,12 @@ def main(
 
     # write a loop on source model names.
     source_model_names = [
-        # "sentence-transformers/gtr-t5-base",
-        # "intfloat/multilingual-e5-base",
-        # "google/flan-t5-base",
-        # "google-t5/t5-base",
-        # "google/mt5-base",
-        # "google-bert/bert-base-multilingual-cased",
+        "sentence-transformers/gtr-t5-base",
+        "intfloat/multilingual-e5-base",
+        "google/flan-t5-base",
+        "google-t5/t5-base",
+        "google/mt5-base",
+        "google-bert/bert-base-multilingual-cased",
         "text-embedding-ada-002",
         "text-embedding-3-large",
         "sentence-transformers/all-MiniLM-L6-v2"  # sbert

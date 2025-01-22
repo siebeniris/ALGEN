@@ -33,8 +33,7 @@ class DecoderFinetuneModel(nn.Module):
         self.embedding_transform = self.embedding_transform.to(self.device)
 
     def get_embeddings(self, embeddings, attention_mask):
-        # get the mean_pooled.
-        # embeddings = mean_pool(hidden_states, attention_mask)
+        # get the mean_pooled. this is done in the InversionDataset class
         embeddings = embeddings.to(self.device)
 
         # normalize embeddings.

@@ -6,7 +6,7 @@ import numpy as np
 import random
 from tqdm import tqdm
 import transformers.models.t5.modeling_t5 as t5_modeling
-
+import torch.nn.functional as F
 t5_modeling.T5LayerNorm = LayerNorm
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -141,13 +141,18 @@ def get_Y_tokens_from_tokenizer(train_data, val_data, test_data, target_tokenize
     return Y_tokens, Y_val_tokens, Y_test_tokens
 
 
-def get_Y_embeddings_from_tokens(tokens, target_encoder):
+def get_Y_embeddings_from_tokens(tokens, target_encoder, normalization=False):
     # get  Y embeddings directly from its tokens.
     # tokens = tokens.to(device)
     with torch.no_grad():
         Y = target_encoder(**tokens).last_hidden_state  # Shape: (batch, seq_len, hidden_size)
+    # TODO: normalize embeddings here.
     mean_pooled = mean_pool(Y, tokens["attention_mask"])
-    return mean_pooled
+    if normalization:
+        mean_pooled_norm = F.normalize(mean_pooled, p=2, dim=1)
+        return mean_pooled_norm
+    else:
+        return mean_pooled
 
 
 def load_source_encoder_and_tokenizer(model_name, device):
@@ -262,7 +267,7 @@ def get_embeddings_from_encoders(train_data, test_data,
     return X, Y, X_test, Y_test, X_tokens, Y_tokens, X_test_tokens, Y_test_tokens
 
 
-def get_mean_X(texts, tokenizer, model, device):
+def get_mean_X(texts, tokenizer, model, device, normalization=False):
     X_mean_l = []
     for text in tqdm(texts):
         tokens = tokenizer(text)
@@ -273,7 +278,13 @@ def get_mean_X(texts, tokenizer, model, device):
                 X = model.encoder(input_ids, attention_mask=attention_mask).last_hidden_state
             else:
                 X = model(input_ids, attention_mask=attention_mask).last_hidden_state
+        # TODO: NORMALIZE X
         X_mean = mean_pool(X, attention_mask)
-        X_mean_l.append(X_mean)
+        # normalization comes after mean pooling.
+        if normalization:
+            X_mean_norm= F.normalize(X_mean, p=2, dim=1)
+            X_mean_l.append(X_mean_norm)
+        else:
+            X_mean_l.append(X_mean)
     X_mean_tensor = torch.stack(X_mean_l, dim=0)
     return X_mean_tensor.squeeze(1)
