@@ -241,14 +241,14 @@ def main(
 
     # write a loop on source model names.
     source_model_names = [
+        "text-embedding-ada-002",
+        "text-embedding-3-large",
         "sentence-transformers/gtr-t5-base",
         "intfloat/multilingual-e5-base",
         "google/flan-t5-base",
         "google-t5/t5-base",
         "google/mt5-base",
         "google-bert/bert-base-multilingual-cased",
-        "text-embedding-ada-002",
-        "text-embedding-3-large",
         "sentence-transformers/all-MiniLM-L6-v2"  # sbert
     ]
 
