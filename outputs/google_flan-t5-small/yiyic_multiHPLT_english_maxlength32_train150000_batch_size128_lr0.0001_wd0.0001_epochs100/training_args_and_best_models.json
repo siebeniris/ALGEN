@@ -1,0 +1,49 @@
+{
+    "training_args": {
+        "model_name": "google/flan-t5-small",
+        "output_dir": "outputs",
+        "max_length": 32,
+        "data_folder": "None",
+        "lang": "yiyic/multiHPLT_english",
+        "train_samples": 150000,
+        "val_samples": 200,
+        "batch_size": 128,
+        "learning_rate": 0.0001,
+        "weight_decay": 0.0001,
+        "num_epochs": 100,
+        "wandb_run_name": "decoder_english_multiHPLT_norm",
+        "checkpoint_path": null
+    },
+    "best_models": [
+        [
+            2.9619970321655273,
+            {
+                "bleu": 39.03,
+                "bleu1": 62.76,
+                "bleu2": 41.02,
+                "bleu3": 33.79,
+                "bleu4": 30.17,
+                "rougeL": 0.5516,
+                "rouge1": 0.6359,
+                "rouge2": 0.4214,
+                "exact_match": 0.0
+            },
+            "outputs/google_flan-t5-small/yiyic_multiHPLT_english_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100/checkpoint_epoch_100.pt"
+        ],
+        [
+            2.9641616344451904,
+            {
+                "bleu": 39.88,
+                "bleu1": 63.68,
+                "bleu2": 42.02,
+                "bleu3": 34.56,
+                "bleu4": 30.8,
+                "rougeL": 0.5559,
+                "rouge1": 0.6447,
+                "rouge2": 0.4281,
+                "exact_match": 0.0
+            },
+            "outputs/google_flan-t5-small/yiyic_multiHPLT_english_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100/checkpoint_epoch_99.pt"
+        ]
+    ]
+}

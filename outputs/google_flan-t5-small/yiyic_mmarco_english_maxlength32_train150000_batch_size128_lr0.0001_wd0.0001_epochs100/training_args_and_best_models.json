@@ -1,0 +1,49 @@
+{
+    "training_args": {
+        "model_name": "google/flan-t5-small",
+        "output_dir": "outputs",
+        "max_length": 32,
+        "data_folder": "None",
+        "lang": "yiyic/mmarco_english",
+        "train_samples": 150000,
+        "val_samples": 200,
+        "batch_size": 128,
+        "learning_rate": 0.0001,
+        "weight_decay": 0.0001,
+        "num_epochs": 100,
+        "wandb_run_name": "decoder_english_mmarco_norm",
+        "checkpoint_path": null
+    },
+    "best_models": [
+        [
+            2.407715320587158,
+            {
+                "bleu": 33.59,
+                "bleu1": 60.11,
+                "bleu2": 35.55,
+                "bleu3": 28.17,
+                "bleu4": 24.28,
+                "rougeL": 0.509,
+                "rouge1": 0.5955,
+                "rouge2": 0.354,
+                "exact_match": 0.0
+            },
+            "outputs/google_flan-t5-small/yiyic_mmarco_english_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100/checkpoint_epoch_100.pt"
+        ],
+        [
+            2.4211422204971313,
+            {
+                "bleu": 33.47,
+                "bleu1": 60.7,
+                "bleu2": 36.37,
+                "bleu3": 28.47,
+                "bleu4": 24.39,
+                "rougeL": 0.5097,
+                "rouge1": 0.601,
+                "rouge2": 0.354,
+                "exact_match": 0.005
+            },
+            "outputs/google_flan-t5-small/yiyic_mmarco_english_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100/checkpoint_epoch_99.pt"
+        ]
+    ]
+}
