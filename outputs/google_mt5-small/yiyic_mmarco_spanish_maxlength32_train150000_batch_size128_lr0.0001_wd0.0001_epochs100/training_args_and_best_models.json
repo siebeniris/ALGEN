@@ -1,0 +1,49 @@
+{
+    "training_args": {
+        "model_name": "google/mt5-small",
+        "output_dir": "outputs",
+        "max_length": 32,
+        "data_folder": "None",
+        "lang": "yiyic/mmarco_spanish",
+        "train_samples": 150000,
+        "val_samples": 200,
+        "batch_size": 128,
+        "learning_rate": 0.0001,
+        "weight_decay": 0.0001,
+        "num_epochs": 100,
+        "wandb_run_name": "decoder_spanish_mmarco_norm",
+        "checkpoint_path": null
+    },
+    "best_models": [
+        [
+            2.4401122331619263,
+            {
+                "bleu": 17.67,
+                "bleu1": 49.06,
+                "bleu2": 20.85,
+                "bleu3": 12.49,
+                "bleu4": 8.76,
+                "rougeL": 0.3652,
+                "rouge1": 0.4618,
+                "rouge2": 0.2258,
+                "exact_match": 0.0
+            },
+            "outputs/google_mt5-small/yiyic_mmarco_spanish_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100/checkpoint_epoch_100.pt"
+        ],
+        [
+            2.443523645401001,
+            {
+                "bleu": 19.06,
+                "bleu1": 50.33,
+                "bleu2": 22.16,
+                "bleu3": 13.34,
+                "bleu4": 9.42,
+                "rougeL": 0.3752,
+                "rouge1": 0.4809,
+                "rouge2": 0.2468,
+                "exact_match": 0.0
+            },
+            "outputs/google_mt5-small/yiyic_mmarco_spanish_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100/checkpoint_epoch_95.pt"
+        ]
+    ]
+}
