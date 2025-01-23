@@ -12,7 +12,8 @@ from inversion_utils import (set_seed,
                              get_Y_tokens_from_tokenizer,
                              get_Y_embeddings_from_tokens,
                              get_mean_X,
-                             load_source_encoder_and_tokenizer)
+                             load_source_encoder_and_tokenizer,
+                             check_normalization)
 from utils import get_device
 from eval_metrics import eval_embeddings
 from tqdm import tqdm
@@ -128,6 +129,8 @@ class DecoderInference:
             X_pooled_train = torch.tensor(vecs["train"][:self.align_train_samples], dtype=torch.float32).to(self.device)
             X_pooled_val = torch.tensor(vecs["dev"][:self.align_test_samples], dtype=torch.float32).to(self.device)
             X_pooled_test = torch.tensor(vecs["test"][:self.align_test_samples], dtype=torch.float32).to(self.device)
+
+
         else:
 
             # get x embeddings.
@@ -141,11 +144,19 @@ class DecoderInference:
             X_pooled_test = get_mean_X(true_test_texts, self.source_tokenizer, self.source_encoder, self.device,
                                        normalization=True)
 
+        check_normalization(X_pooled_train, "X train")
+        check_normalization(X_pooled_val, "X val")
+        check_normalization(X_pooled_test, "X test")
+
         print(f"X shape train {X_pooled_train.shape}, val {X_pooled_val.shape}, test {X_pooled_test.shape}")
 
         Y_pooled_train = get_Y_embeddings_from_tokens(Y_tokens, self.target_encoder, normalization=True)
         Y_pooled_val = get_Y_embeddings_from_tokens(Y_val_tokens, self.target_encoder, normalization=True)
         Y_pooled_test = get_Y_embeddings_from_tokens(Y_test_tokens, self.target_encoder, normalization=True)
+
+        check_normalization(Y_pooled_train, "Y train")
+        check_normalization(Y_pooled_val, "Y val")
+        check_normalization(Y_pooled_test, "Y test")
 
         # train data to align.
         X_aligned, T = self.mapping_X_to_Y_pooled(X_pooled_train, Y_pooled_train)
@@ -257,7 +268,7 @@ def main(
     ]
 
     for source_model_name in source_model_names:
-        for test_data in datasets_names:
+        for test_data in tqdm(datasets_names):
             for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
                 source_model_name_ = source_model_name.replace("/", "_")
                 test_dataset_ = test_data.replace("/", "_")

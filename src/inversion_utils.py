@@ -25,6 +25,10 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+def check_normalization(embeddings , name):
+    norms = torch.norm(embeddings, p=2, dim=1)
+    print(f"{name} mean norm: {norms.mean().item()}, std norm: {norms.std().item()}")
+
 
 def decode_embeddings(embeddings,
                       attention_mask,
