@@ -126,18 +126,20 @@ class DecoderInference:
             # get the sample size accordingly
             # the embeddings are already normalized.
             X_pooled_train = torch.tensor(vecs["train"][:self.align_train_samples], dtype=torch.float32).to(self.device)
-            X_pooled_val = torch.tensor(vecs["train"][:self.align_test_samples], dtype=torch.float32).to(self.device)
-            X_pooled_test = torch.tensor(vecs["train"][:self.align_test_samples], dtype=torch.float32).to(self.device)
+            X_pooled_val = torch.tensor(vecs["dev"][:self.align_test_samples], dtype=torch.float32).to(self.device)
+            X_pooled_test = torch.tensor(vecs["test"][:self.align_test_samples], dtype=torch.float32).to(self.device)
         else:
 
             # get x embeddings.
             # handle texts one by one because we only get mean_pooled embeddings.
             # embeddings have the shape Bx n (batch_size, n)
             # added normalization,
-            X_pooled_train = get_mean_X(true_train_texts, self.source_tokenizer, self.source_encoder, self.device, normalization=True)
-            X_pooled_val = get_mean_X(true_val_texts, self.source_tokenizer, self.source_encoder, self.device, normalization=True)
-            X_pooled_test = get_mean_X(true_test_texts, self.source_tokenizer, self.source_encoder, self.device, normalization=True)
-
+            X_pooled_train = get_mean_X(true_train_texts, self.source_tokenizer, self.source_encoder, self.device,
+                                        normalization=True)
+            X_pooled_val = get_mean_X(true_val_texts, self.source_tokenizer, self.source_encoder, self.device,
+                                      normalization=True)
+            X_pooled_test = get_mean_X(true_test_texts, self.source_tokenizer, self.source_encoder, self.device,
+                                       normalization=True)
 
         print(f"X shape train {X_pooled_train.shape}, val {X_pooled_val.shape}, test {X_pooled_test.shape}")
 
@@ -234,63 +236,64 @@ def main(
 ):
     test_samples = 200
     if "flan-t5-small" in checkpoint_path:
-        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german", "yiyic/mmarco_spanish", "yiyic/mmarco_french"]
+        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german",
+                          "yiyic/mmarco_spanish", "yiyic/mmarco_french"]
     else:
-        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german", "yiyic/mmarco_spanish", "yiyic/mmarco_french",
+        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german",
+                          "yiyic/mmarco_spanish", "yiyic/mmarco_french",
                           "yiyic/mmarco_chinese", "yiyic/mmarco_vietnamese"]
 
     # write a loop on source model names.
     source_model_names = [
         "text-embedding-ada-002",
         "text-embedding-3-large",
-        "sentence-transformers/gtr-t5-base",
-        "intfloat/multilingual-e5-base",
-        "google/flan-t5-base",
-        "google-t5/t5-base",
-        "google/mt5-base",
-        "google-bert/bert-base-multilingual-cased",
-        "sentence-transformers/all-MiniLM-L6-v2"  # sbert
+        # "sentence-transformers/gtr-t5-base",
+        # "intfloat/multilingual-e5-base",
+        # "google/flan-t5-base",
+        # "google-t5/t5-base",
+        # "google/mt5-base",
+        # "google-bert/bert-base-multilingual-cased",
+        # "sentence-transformers/all-MiniLM-L6-v2"  # sbert
     ]
 
     for source_model_name in source_model_names:
         for test_data in datasets_names:
             for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
-
                 source_model_name_ = source_model_name.replace("/", "_")
                 test_dataset_ = test_data.replace("/", "_")
                 output_dir = os.path.join(checkpoint_path,
                                           f"attack_{test_dataset_}_{source_model_name_}_train{train_samples}")
 
-                if not os.path.exists(output_dir):
-                    print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
-                    decoderInference = DecoderInference(checkpoint_path, source_model_name,
-                                                        train_samples, test_samples, test_data)
+                # if not os.path.exists(output_dir):
+                print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
+                decoderInference = DecoderInference(checkpoint_path, source_model_name,
+                                                    train_samples, test_samples, test_data)
 
-                    test_results, preds, references = decoderInference.test()
-                    # TODO: add translation here.
-                    # translate the decoded into fine-tuned language.
-                    # extract language from checkpoints and dataset name
-                    # use easy nmt
+                test_results, preds, references = decoderInference.test()
+                # TODO: add translation here.
+                # translate the decoded into fine-tuned language.
+                # extract language from checkpoints and dataset name
+                # use easy nmt
 
-                    df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
+                df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
 
-                    results_dict = {
-                        "train_samples": train_samples,
-                        "test_samples": test_samples,
-                        "source_model": source_model_name,
-                        "source_dim": decoderInference.source_hidden_dim,
-                        "target_dim": decoderInference.target_hidden_dim,
-                        "test_results": test_results,
-                        "loss": decoderInference.align_metrics
-                    }
-                    print(results_dict)
+                results_dict = {
+                    "train_samples": train_samples,
+                    "test_samples": test_samples,
+                    "source_model": source_model_name,
+                    "source_dim": decoderInference.source_hidden_dim,
+                    "target_dim": decoderInference.target_hidden_dim,
+                    "test_results": test_results,
+                    "loss": decoderInference.align_metrics
+                }
+                print(results_dict)
 
-                    print(f"writing the results to {output_dir}")
-                    os.makedirs(output_dir, exist_ok=True)
-                    df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
-                    with open(os.path.join(output_dir, "results.json"), "w") as f:
-                        json.dump(results_dict, f)
-                    print("*" * 40)
+                print(f"writing the results to {output_dir}")
+                os.makedirs(output_dir, exist_ok=True)
+                df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
+                with open(os.path.join(output_dir, "results.json"), "w") as f:
+                    json.dump(results_dict, f)
+                print("*" * 40)
 
 
 if __name__ == '__main__':
