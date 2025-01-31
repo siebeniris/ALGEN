@@ -99,12 +99,13 @@ def get_vectors_gpt_per_model_dataset(
 
 if __name__ == '__main__':
 
-    attacker_models = ["google/flan-t5-small", "google/umt5-small", "google/mt5-small"]
+    attacker_models = ["google/flan-t5-small"]
     max_length = 32
 
     # dataset_names = ["yiyic/mmarco_english", "yiyic/mmarco_french", "yiyic/mmarco_spanish", "yiyic/mmarco_german"]
     # datasets_extra = ["yiyic/mmarco_chinese", "yiyic/mmarco_vietnamese"]
-    dataset_names = ["yiyic/multiHPLT_english"]
+    # dataset_names = ["yiyic/multiHPLT_english"]
+    dataset_names = ["yiyic/snli_1k", "yiyic/sst2_1k", "yiyic/sentiment140_1k"]
     datasets_extra = dataset_names
     gpt_embedders = ["text-embedding-ada-002", "text-embedding-3-large"]
     # gpt_embedders = ["text-embedding-3-large"]
