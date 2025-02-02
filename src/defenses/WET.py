@@ -67,6 +67,7 @@ def defense_WET(X):
     transformation_matrix_cond = np.linalg.cond(T_trans)
     transformation_matrix_rank = np.linalg.matrix_rank(T_trans)
     print(f"transformation matrix condition {transformation_matrix_cond} and rank {transformation_matrix_rank}")
+    T_trans = T_trans.to(X.device)
 
     X_trans_stack = []
     for i in range(nr_sample):
