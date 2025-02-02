@@ -297,7 +297,7 @@ def defense_output(checkpoint_path: str,
     # if not os.path.exists(output_dir):
     output_dir = os.path.join(defense_outputdir,
                               f"defense_{test_dataset_}_{source_model_name_}_train{train_samples}_noise_{gaussian_noise_level}_epsilon{dp_epsilon}_delta{dp_delta}")
-
+    os.makedirs(output_dir, exist_ok=True)
     print(f"defending embeddings from {source_model_name} with {train_samples} train samples with {defense_method}")
 
     decoderInference = DecoderInferenceDefense(checkpoint_path, source_model_name, defense_method,
