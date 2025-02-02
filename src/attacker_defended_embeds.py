@@ -336,7 +336,8 @@ def main(
         checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50"
 ):
     test_samples = 200
-    datasets_names = ["yiyic/snli_1k", "yiyic/sst2_1k", "yiyic/sentiment140_1k"]
+    # datasets_names = ["yiyic/snli_1k", "yiyic/sst2_1k", "yiyic/sentiment140_1k"]
+    datasets_names = ["yiyic/snli_1k"]
     # write a loop on source model names.
     source_model_names = [
         "text-embedding-ada-002",
