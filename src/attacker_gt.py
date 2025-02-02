@@ -129,10 +129,7 @@ class DecoderInference:
             X_pooled_train = torch.tensor(vecs["train"][:self.align_train_samples], dtype=torch.float32).to(self.device)
             X_pooled_val = torch.tensor(vecs["dev"][:self.align_test_samples], dtype=torch.float32).to(self.device)
             X_pooled_test = torch.tensor(vecs["test"][:self.align_test_samples], dtype=torch.float32).to(self.device)
-
-
         else:
-
             # get x embeddings.
             # handle texts one by one because we only get mean_pooled embeddings.
             # embeddings have the shape Bx n (batch_size, n)
@@ -140,9 +137,9 @@ class DecoderInference:
             X_pooled_train = get_mean_X(true_train_texts, self.source_tokenizer, self.source_encoder, self.device,
                                         normalization=True)
             X_pooled_val = get_mean_X(true_val_texts, self.source_tokenizer, self.source_encoder, self.device,
-                                      normalization=True)
+                                    normalization=True)
             X_pooled_test = get_mean_X(true_test_texts, self.source_tokenizer, self.source_encoder, self.device,
-                                       normalization=True)
+                                    normalization=True)
 
         check_normalization(X_pooled_train, "X train")
         check_normalization(X_pooled_val, "X val")
@@ -181,7 +178,6 @@ class DecoderInference:
         # print(self.align_metrics)
 
         # get the labels, hidden_states, and attention_mask
-
         self.test_data = {
             "hidden_states": X_test_aligned,
             "attention_mask": Y_test_tokens["attention_mask"],
@@ -269,8 +265,8 @@ def main(
 
     for source_model_name in source_model_names:
         for test_data in tqdm(datasets_names):
-            # for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
-            for train_samples in [ 2000, 3000, 4000, 5000, 6000, 7000, 8000]:
+            for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
+            # for train_samples in [2000, 3000, 4000, 5000, 6000, 7000, 8000]:
                 source_model_name_ = source_model_name.replace("/", "_")
                 test_dataset_ = test_data.replace("/", "_")
                 output_dir = os.path.join(checkpoint_path,

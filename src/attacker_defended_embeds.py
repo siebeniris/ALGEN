@@ -18,10 +18,18 @@ from utils import get_device
 from eval_metrics import eval_embeddings
 from tqdm import tqdm
 
+from defenses.WET import defense_WET
+from defenses.gaussian_noise import insert_gaussian_noise, dp_guassian_embeddings
+from defenses.shuffling import shuffle_embeddings
 
-class DecoderInference:
+
+class DecoderInferenceDefense:
     def __init__(self, checkpoint_path: str,
                  source_model_name: str,
+                 defense_method: str,
+                 gaussian_noise_level: float,
+                 dp_epsilon:float,
+                 dp_delta: float,
                  align_train_samples: int,
                  align_test_samples: int,
                  test_dataset: str):
@@ -64,6 +72,10 @@ class DecoderInference:
         self.target_model_name = self.args["model_name"]
         self.test_dataset = test_dataset
         self.source_model_name = source_model_name
+        self.defense_method = defense_method
+        self.gaussian_noise_level = gaussian_noise_level
+        self.dp_epsilon = dp_epsilon
+        self.dp_delta = dp_delta
 
         self.device = self.trainer.device
         # load the best model
@@ -79,8 +91,7 @@ class DecoderInference:
             self.source_encoder = None
             self.source_tokenizer = None
         else:
-            self.source_encoder, self.source_tokenizer = load_source_encoder_and_tokenizer(source_model_name,
-                                                                                           self.device)
+            self.source_encoder, self.source_tokenizer = load_source_encoder_and_tokenizer(source_model_name, self.device)
 
         self.initialize_embeddings()
 
@@ -129,6 +140,9 @@ class DecoderInference:
             X_pooled_train = torch.tensor(vecs["train"][:self.align_train_samples], dtype=torch.float32).to(self.device)
             X_pooled_val = torch.tensor(vecs["dev"][:self.align_test_samples], dtype=torch.float32).to(self.device)
             X_pooled_test = torch.tensor(vecs["test"][:self.align_test_samples], dtype=torch.float32).to(self.device)
+
+
+
         else:
             # get x embeddings.
             # handle texts one by one because we only get mean_pooled embeddings.
@@ -155,12 +169,39 @@ class DecoderInference:
         check_normalization(Y_pooled_val, "Y val")
         check_normalization(Y_pooled_test, "Y test")
 
+        # TODO: DEFNESE MECHANISMS
+        if self.defense_method == "WET":
+            X_p_train = defense_WET(X_pooled_train)
+            X_p_val = defense_WET(X_pooled_val)
+            X_p_test = defense_WET(X_pooled_test)
+
+        elif self.defense_method == "Gaussian" and self.gaussian_noise_level:
+            X_p_train = insert_gaussian_noise(X_pooled_train, self.gaussian_noise_level)
+            X_p_val = insert_gaussian_noise(X_pooled_val, self.gaussian_noise_level)
+            X_p_test = insert_gaussian_noise(X_pooled_test, self.gaussian_noise_level)
+
+        elif self.defense_method == "Shuffling":
+            # pass
+            X_p_train = shuffle_embeddings(X_pooled_train)
+            X_p_val = shuffle_embeddings(X_pooled_val)
+            X_p_test = shuffle_embeddings(X_pooled_test)
+
+        elif self.defense_method == 'dp_Gaussian':
+            X_p_train = dp_guassian_embeddings(X_pooled_train, self.dp_epsilon, self.dp_delta)
+            X_p_val = dp_guassian_embeddings(X_pooled_val, self.dp_epsilon, self.dp_delta)
+            X_p_test = dp_guassian_embeddings(X_pooled_test, self.dp_epsilon, self.dp_delta)
+        else:
+            X_p_train = X_pooled_train
+            X_p_val = X_pooled_val
+            X_p_test = X_pooled_test
+
+
         # train data to align.
-        X_aligned, T = self.mapping_X_to_Y_pooled(X_pooled_train, Y_pooled_train)
+        X_aligned, T = self.mapping_X_to_Y_pooled(X_p_train, Y_pooled_train)
         self.source_hidden_dim, self.target_hidden_dim = T.shape
 
-        X_val_aligned = X_pooled_val @ T
-        X_test_aligned = X_pooled_test @ T
+        X_val_aligned = X_p_val @ T
+        X_test_aligned = X_p_test @ T
 
         # test alignment on X_test and Y_test
         X_Y_cos, X_Y_mseloss = eval_embeddings(X_aligned, Y_pooled_train)
@@ -238,6 +279,57 @@ class DecoderInference:
         print(f"Loaded best model with val_loss={self.best_val_loss} from {best_checkpoint_path}")
 
 
+def defense_output(checkpoint_path:str,
+                   outputdir:str, defense_method:str,
+                   gaussian_noise_level:float,
+                   dp_epsilon:float,dp_delta:float,
+                   test_data:str, source_model_name:str,
+                   train_samples:int, test_samples:int
+                   ):
+
+    source_model_name_ = source_model_name.replace("/", "_")
+    test_dataset_ = test_data.replace("/", "_")
+
+    defense_outputdir = os.path.join(outputdir, defense_method)
+    os.makedirs(defense_outputdir, exist_ok=True)
+
+    # if not os.path.exists(output_dir):
+    output_dir = os.path.join(defense_outputdir,
+                              f"defense_{test_dataset_}_{source_model_name_}_train{train_samples}_noise_{gaussian_noise_level}")
+
+    print(f"defending embeddings from {source_model_name} with {train_samples} train samples with {defense_method}")
+
+    decoderInference = DecoderInferenceDefense(checkpoint_path, source_model_name, defense_method,
+                                               gaussian_noise_level, dp_epsilon, dp_delta,
+                                               train_samples, test_samples, test_data)
+
+    test_results, preds, references = decoderInference.test()
+    # TODO: add translation here.
+    # translate the decoded into fine-tuned language.
+    # extract language from checkpoints and dataset name
+    # use easy nmt
+
+    df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
+
+    results_dict = {
+        "train_samples": train_samples,
+        "test_samples": test_samples,
+        "source_model": source_model_name,
+        "source_dim": decoderInference.source_hidden_dim,
+        "target_dim": decoderInference.target_hidden_dim,
+        "test_results": test_results,
+        "loss": decoderInference.align_metrics
+    }
+    print(results_dict)
+
+    print(f"writing the results to {output_dir}")
+    os.makedirs(output_dir, exist_ok=True)
+    df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
+    with open(os.path.join(output_dir, "results.json"), "w") as f:
+        json.dump(results_dict, f)
+    print("*" * 40)
+
+
 def main(
         checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50"
 ):
@@ -262,46 +354,35 @@ def main(
         # "google-bert/bert-base-multilingual-cased",
         "sentence-transformers/all-MiniLM-L6-v2"  # sbert
     ]
+    outputdir = os.path.join(checkpoint_path, "defenses")
 
     for source_model_name in source_model_names:
+        # dataset.
         for test_data in tqdm(datasets_names):
             # for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
-            for train_samples in [2000, 3000, 4000, 5000, 6000, 7000, 8000]:
-                source_model_name_ = source_model_name.replace("/", "_")
-                test_dataset_ = test_data.replace("/", "_")
-                output_dir = os.path.join(checkpoint_path,
-                                          f"attack_{test_dataset_}_{source_model_name_}_train{train_samples}")
+            # get different datasets.
+            train_samples = 1000
 
-                # if not os.path.exists(output_dir):
-                print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
-                decoderInference = DecoderInference(checkpoint_path, source_model_name,
-                                                    train_samples, test_samples, test_data)
+            guassian_noise_levels = [0.01, 0.05, 0.1, 0.5, 1.0]
+            delta_list = [1e-3, 1e-4, 1e-5, 1e-6]
+            epsilon_list = [0.01, 0.05, 0.1, 0.5, 1.0]
 
-                test_results, preds, references = decoderInference.test()
-                # TODO: add translation here.
-                # translate the decoded into fine-tuned language.
-                # extract language from checkpoints and dataset name
-                # use easy nmt
+            for defense_method in ["WET", "Shuffling"]:
+                    defense_output(checkpoint_path, outputdir, defense_method, 0, 0,0, test_data, source_model_name, train_samples, test_samples)
 
-                df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
+            for noise_level in guassian_noise_levels:
+                    defense_output(checkpoint_path, outputdir, "Gaussian",  noise_level, 0, 0, test_data, source_model_name, train_samples, test_samples)
 
-                results_dict = {
-                    "train_samples": train_samples,
-                    "test_samples": test_samples,
-                    "source_model": source_model_name,
-                    "source_dim": decoderInference.source_hidden_dim,
-                    "target_dim": decoderInference.target_hidden_dim,
-                    "test_results": test_results,
-                    "loss": decoderInference.align_metrics
-                }
-                print(results_dict)
+            for dp_delta in delta_list:
+                for dp_epsilon in epsilon_list:
+                    defense_output(checkpoint_path, outputdir, "dp_Gaussian", 0, dp_epsilon, dp_delta, test_data,
+                                   source_model_name, train_samples, test_samples)
 
-                print(f"writing the results to {output_dir}")
-                os.makedirs(output_dir, exist_ok=True)
-                df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
-                with open(os.path.join(output_dir, "results.json"), "w") as f:
-                    json.dump(results_dict, f)
-                print("*" * 40)
+
+
+
+
+
 
 
 if __name__ == '__main__':
