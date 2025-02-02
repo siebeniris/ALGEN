@@ -67,12 +67,12 @@ def defense_WET(X):
     transformation_matrix_cond = np.linalg.cond(T_trans)
     transformation_matrix_rank = np.linalg.matrix_rank(T_trans)
     print(f"transformation matrix condition {transformation_matrix_cond} and rank {transformation_matrix_rank}")
-    T_trans = T_trans.to(X.device)
+    T_trans = torch.Tensor(T_trans).to(X.device)
 
     X_trans_stack = []
     for i in range(nr_sample):
         X_i = X[i]
-        X_i_trans = torch.FloatTensor(torch.mm(T_trans, X_i.reshape(X_dim, 1)).reshape(-1))
+        X_i_trans = torch.mm(T_trans, X_i.reshape(X_dim, 1)).reshape(-1)
         X_i_trans_normed = X_i_trans / torch.norm(X_i_trans, p=2, dim=0, keepdim=True)
         assert len(X_i_trans_normed) == n
         assert torch.norm(X_i_trans_normed, p=2, dim=0, keepdim=True) > .999999
