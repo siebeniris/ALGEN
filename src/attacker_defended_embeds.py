@@ -167,6 +167,8 @@ class DecoderInferenceDefense:
         check_normalization(Y_pooled_val, "Y val")
         check_normalization(Y_pooled_test, "Y test")
 
+        Y_test_attention = Y_test_tokens["attention_mask"]
+
         # TODO: DEFNESE MECHANISMS
         if self.defense_method == "WET":
             print("applying defense WET")
@@ -176,7 +178,6 @@ class DecoderInferenceDefense:
 
         elif self.defense_method == "Gaussian" and self.gaussian_noise_level:
             print(f"applying gaussian  with noise level {self.gaussian_noise_level}")
-
             X_p_train = insert_gaussian_noise(X_pooled_train, self.gaussian_noise_level)
             X_p_val = insert_gaussian_noise(X_pooled_val, self.gaussian_noise_level)
             X_p_test = insert_gaussian_noise(X_pooled_test, self.gaussian_noise_level)
@@ -184,9 +185,9 @@ class DecoderInferenceDefense:
         elif self.defense_method == "Shuffling":
             print(f"applying defense shuffling")
             # pass
-            X_p_train = shuffle_embeddings(X_pooled_train)
-            X_p_val = shuffle_embeddings(X_pooled_val)
-            X_p_test = shuffle_embeddings(X_pooled_test)
+            X_p_train, X_p_val, X_p_test, Y_test_attention_perm = shuffle_embeddings(X_pooled_train, X_pooled_val,
+                                                                                    X_pooled_test, Y_test_attention)
+            Y_test_attention = Y_test_attention_perm
 
         elif self.defense_method == 'dp_Gaussian':
             print(f"applying DP Gaussian with epsilon {self.dp_epsilon} and delta {self.dp_delta}")
@@ -223,7 +224,7 @@ class DecoderInferenceDefense:
         # get the labels, hidden_states, and attention_mask
         self.test_data = {
             "hidden_states": X_test_aligned,
-            "attention_mask": Y_test_tokens["attention_mask"],
+            "attention_mask": Y_test_attention,
             "texts": true_test_texts
         }
 
@@ -357,7 +358,7 @@ def main(
             # get different datasets.
             train_samples = 1000
 
-            guassian_noise_levels = [0.01, 0.05, 0.1, 0.5, 1.0]
+            guassian_noise_levels = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
             delta_list = [1e-3, 1e-4, 1e-5, 1e-6]
             epsilon_list = [0.01, 0.05, 0.1, 0.5, 1.0]
 

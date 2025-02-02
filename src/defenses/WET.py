@@ -53,6 +53,7 @@ def get_transformation_matrix_cyclic(w, n, k):
             curr_row = torch.clone(first_row)
     return torch.stack(mat)
 
+
 def defense_WET(X):
     nr_sample, X_dim = X.shape
     print(f"nr sample {nr_sample}, source shape {X_dim}")
