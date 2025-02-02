@@ -173,40 +173,39 @@ class DecoderInferenceDefense:
         X_aligned, T = self.mapping_X_to_Y_pooled(X_pooled_train, Y_pooled_train)
         self.source_hidden_dim, self.target_hidden_dim = T.shape
 
-        # TODO: DEFNESE MECHANISMS
+        X_val_aligned = X_pooled_val @ T
+        X_test_aligned = X_pooled_test @ T
+
+        # TODO: DEFNESE after alignment
         if self.defense_method == "WET":
             print("applying defense WET")
-            X_p_val = defense_WET(X_pooled_val)
-            X_p_test = defense_WET(X_pooled_test)
+            X_p_val = defense_WET(X_val_aligned)
+            X_p_test = defense_WET(X_test_aligned)
 
         elif self.defense_method == "Gaussian" and self.gaussian_noise_level:
             print(f"applying gaussian  with noise level {self.gaussian_noise_level}")
-            X_p_val = insert_gaussian_noise(X_pooled_val, self.gaussian_noise_level)
-            X_p_test = insert_gaussian_noise(X_pooled_test, self.gaussian_noise_level)
+            X_p_val = insert_gaussian_noise(X_val_aligned, self.gaussian_noise_level)
+            X_p_test = insert_gaussian_noise(X_test_aligned, self.gaussian_noise_level)
 
         elif self.defense_method == "Shuffling":
             print(f"applying defense shuffling")
             # pass
-            X_p_val,_ = shuffling_one_set_embeddings(X_pooled_val, Y_val_tokens["attention_mask"])
-            X_p_test, Y_test_attention_perm = shuffling_one_set_embeddings(X_pooled_test, Y_test_attention)
+            X_p_val,_ = shuffling_one_set_embeddings(X_val_aligned, Y_val_tokens["attention_mask"])
+            X_p_test, Y_test_attention_perm = shuffling_one_set_embeddings(X_test_aligned, Y_test_attention)
             Y_test_attention = Y_test_attention_perm
 
         elif self.defense_method == 'dp_Gaussian':
             print(f"applying DP Gaussian with epsilon {self.dp_epsilon} and delta {self.dp_delta}")
-            X_p_val = dp_guassian_embeddings(X_pooled_val, self.dp_epsilon, self.dp_delta)
-            X_p_test = dp_guassian_embeddings(X_pooled_test, self.dp_epsilon, self.dp_delta)
+            X_p_val = dp_guassian_embeddings(X_val_aligned, self.dp_epsilon, self.dp_delta)
+            X_p_test = dp_guassian_embeddings(X_test_aligned, self.dp_epsilon, self.dp_delta)
         else:
-            X_p_val = X_pooled_val
-            X_p_test = X_pooled_test
+            X_p_val = X_val_aligned
+            X_p_test = X_test_aligned
 
-
-        X_val_aligned = X_p_val @ T
-        X_test_aligned = X_p_test @ T
-
-        # test alignment on X_test and Y_test
+        # test alignment on protected X_test and Y_test
         X_Y_cos, X_Y_mseloss = eval_embeddings(X_aligned, Y_pooled_train)
-        X_Y_test_cos, X_Y_test_mseloss = eval_embeddings(X_test_aligned, Y_pooled_test)
-        X_Y_val_cos, X_Y_val_mseloss = eval_embeddings(X_val_aligned, Y_pooled_val)
+        X_Y_test_cos, X_Y_test_mseloss = eval_embeddings(X_p_test, Y_pooled_test)
+        X_Y_val_cos, X_Y_val_mseloss = eval_embeddings(X_p_val, Y_pooled_val)
 
         self.align_metrics = {
             "X_Y_COS": X_Y_cos.item(),
@@ -220,7 +219,7 @@ class DecoderInferenceDefense:
 
         # get the labels, hidden_states, and attention_mask
         self.test_data = {
-            "hidden_states": X_test_aligned,
+            "hidden_states": X_p_test,
             "attention_mask": Y_test_attention,
             "texts": true_test_texts
         }
