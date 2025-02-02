@@ -28,7 +28,7 @@ class DecoderInferenceDefense:
                  source_model_name: str,
                  defense_method: str,
                  gaussian_noise_level: float,
-                 dp_epsilon:float,
+                 dp_epsilon: float,
                  dp_delta: float,
                  align_train_samples: int,
                  align_test_samples: int,
@@ -91,7 +91,8 @@ class DecoderInferenceDefense:
             self.source_encoder = None
             self.source_tokenizer = None
         else:
-            self.source_encoder, self.source_tokenizer = load_source_encoder_and_tokenizer(source_model_name, self.device)
+            self.source_encoder, self.source_tokenizer = load_source_encoder_and_tokenizer(source_model_name,
+                                                                                           self.device)
 
         self.initialize_embeddings()
 
@@ -102,7 +103,6 @@ class DecoderInferenceDefense:
             train_texts = dataset["train"]["text"]
             val_texts = dataset["dev"]["text"]
             test_texts = dataset["test"]["text"]
-
 
         else:
             # make it ["eng", "cmn_hant"]
@@ -141,8 +141,6 @@ class DecoderInferenceDefense:
             X_pooled_val = torch.tensor(vecs["dev"][:self.align_test_samples], dtype=torch.float32).to(self.device)
             X_pooled_test = torch.tensor(vecs["test"][:self.align_test_samples], dtype=torch.float32).to(self.device)
 
-
-
         else:
             # get x embeddings.
             # handle texts one by one because we only get mean_pooled embeddings.
@@ -151,9 +149,9 @@ class DecoderInferenceDefense:
             X_pooled_train = get_mean_X(true_train_texts, self.source_tokenizer, self.source_encoder, self.device,
                                         normalization=True)
             X_pooled_val = get_mean_X(true_val_texts, self.source_tokenizer, self.source_encoder, self.device,
-                                    normalization=True)
+                                      normalization=True)
             X_pooled_test = get_mean_X(true_test_texts, self.source_tokenizer, self.source_encoder, self.device,
-                                    normalization=True)
+                                       normalization=True)
 
         check_normalization(X_pooled_train, "X train")
         check_normalization(X_pooled_val, "X val")
@@ -171,22 +169,27 @@ class DecoderInferenceDefense:
 
         # TODO: DEFNESE MECHANISMS
         if self.defense_method == "WET":
+            print("applying defense WET")
             X_p_train = defense_WET(X_pooled_train)
             X_p_val = defense_WET(X_pooled_val)
             X_p_test = defense_WET(X_pooled_test)
 
         elif self.defense_method == "Gaussian" and self.gaussian_noise_level:
+            print(f"applying gaussian  with noise level {self.gaussian_noise_level}")
+
             X_p_train = insert_gaussian_noise(X_pooled_train, self.gaussian_noise_level)
             X_p_val = insert_gaussian_noise(X_pooled_val, self.gaussian_noise_level)
             X_p_test = insert_gaussian_noise(X_pooled_test, self.gaussian_noise_level)
 
         elif self.defense_method == "Shuffling":
+            print(f"applying defense shuffling")
             # pass
             X_p_train = shuffle_embeddings(X_pooled_train)
             X_p_val = shuffle_embeddings(X_pooled_val)
             X_p_test = shuffle_embeddings(X_pooled_test)
 
         elif self.defense_method == 'dp_Gaussian':
+            print(f"applying DP Gaussian with epsilon {self.dp_epsilon} and delta {self.dp_delta}")
             X_p_train = dp_guassian_embeddings(X_pooled_train, self.dp_epsilon, self.dp_delta)
             X_p_val = dp_guassian_embeddings(X_pooled_val, self.dp_epsilon, self.dp_delta)
             X_p_test = dp_guassian_embeddings(X_pooled_test, self.dp_epsilon, self.dp_delta)
@@ -194,7 +197,6 @@ class DecoderInferenceDefense:
             X_p_train = X_pooled_train
             X_p_val = X_pooled_val
             X_p_test = X_pooled_test
-
 
         # train data to align.
         X_aligned, T = self.mapping_X_to_Y_pooled(X_p_train, Y_pooled_train)
@@ -279,14 +281,13 @@ class DecoderInferenceDefense:
         print(f"Loaded best model with val_loss={self.best_val_loss} from {best_checkpoint_path}")
 
 
-def defense_output(checkpoint_path:str,
-                   outputdir:str, defense_method:str,
-                   gaussian_noise_level:float,
-                   dp_epsilon:float,dp_delta:float,
-                   test_data:str, source_model_name:str,
-                   train_samples:int, test_samples:int
+def defense_output(checkpoint_path: str,
+                   outputdir: str, defense_method: str,
+                   gaussian_noise_level: float,
+                   dp_epsilon: float, dp_delta: float,
+                   test_data: str, source_model_name: str,
+                   train_samples: int, test_samples: int
                    ):
-
     source_model_name_ = source_model_name.replace("/", "_")
     test_dataset_ = test_data.replace("/", "_")
 
@@ -295,7 +296,7 @@ def defense_output(checkpoint_path:str,
 
     # if not os.path.exists(output_dir):
     output_dir = os.path.join(defense_outputdir,
-                              f"defense_{test_dataset_}_{source_model_name_}_train{train_samples}_noise_{gaussian_noise_level}")
+                              f"defense_{test_dataset_}_{source_model_name_}_train{train_samples}_noise_{gaussian_noise_level}_epsilon{dp_epsilon}_delta{dp_delta}")
 
     print(f"defending embeddings from {source_model_name} with {train_samples} train samples with {defense_method}")
 
@@ -334,25 +335,18 @@ def main(
         checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50"
 ):
     test_samples = 200
-    if "flan-t5-small" in checkpoint_path:
-        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german",
-                          "yiyic/mmarco_spanish", "yiyic/mmarco_french"]
-    else:
-        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german",
-                          "yiyic/mmarco_spanish", "yiyic/mmarco_french",
-                          "yiyic/mmarco_chinese", "yiyic/mmarco_vietnamese"]
-
+    datasets_names = ["yiyic/snli_1k", "yiyic/sst2_1k", "yiyic/sentiment140_1k"]
     # write a loop on source model names.
     source_model_names = [
-        # "text-embedding-ada-002",
-        # "text-embedding-3-large",
-        # "sentence-transformers/gtr-t5-base",
+        "text-embedding-ada-002",
+        "text-embedding-3-large",
+        "sentence-transformers/gtr-t5-base",
         # "intfloat/multilingual-e5-base",
         # "google/flan-t5-base",
         "google-t5/t5-base",
         "google/mt5-base",
-        # "google-bert/bert-base-multilingual-cased",
-        "sentence-transformers/all-MiniLM-L6-v2"  # sbert
+        "google-bert/bert-base-multilingual-cased",
+        # "sentence-transformers/all-MiniLM-L6-v2"  # sbert
     ]
     outputdir = os.path.join(checkpoint_path, "defenses")
 
@@ -368,21 +362,17 @@ def main(
             epsilon_list = [0.01, 0.05, 0.1, 0.5, 1.0]
 
             for defense_method in ["WET", "Shuffling"]:
-                    defense_output(checkpoint_path, outputdir, defense_method, 0, 0,0, test_data, source_model_name, train_samples, test_samples)
+                defense_output(checkpoint_path, outputdir, defense_method, 0, 0, 0, test_data, source_model_name,
+                               train_samples, test_samples)
 
             for noise_level in guassian_noise_levels:
-                    defense_output(checkpoint_path, outputdir, "Gaussian",  noise_level, 0, 0, test_data, source_model_name, train_samples, test_samples)
+                defense_output(checkpoint_path, outputdir, "Gaussian", noise_level, 0, 0, test_data, source_model_name,
+                               train_samples, test_samples)
 
             for dp_delta in delta_list:
                 for dp_epsilon in epsilon_list:
                     defense_output(checkpoint_path, outputdir, "dp_Gaussian", 0, dp_epsilon, dp_delta, test_data,
                                    source_model_name, train_samples, test_samples)
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
