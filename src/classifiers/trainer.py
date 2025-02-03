@@ -167,6 +167,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                     "test_f1": test_f1,
                     "test_roc": test_auc
                 }
+                print(test_results)
+                print(f"writing test results to {output_dir}")
 
                 with open(os.path.join(output_dir, f"epoch_{epoch}_results.json"), "w") as f:
                     json.dump(test_results, f)
