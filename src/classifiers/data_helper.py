@@ -39,13 +39,14 @@ def extract_embeddings(model, dataloader, device: torch.device):
             attention_mask = batch["attention_mask"].to(device)
 
             # more efficient with fp16
-            with torch.autocast(device_type=device.type):
-                if model.config.is_encoder_decoder:
+            # with torch.autocast(device_type=device.type):
+            # probably the problem for nans.?
+            if model.config.is_encoder_decoder:
                     outputs = model.encoder(input_ids, attention_mask=attention_mask)
-                else:
+            else:
                     outputs = model(input_ids, attention_mask=attention_mask)
 
-                last_hidden_state_ = outputs.last_hidden_state
+            last_hidden_state_ = outputs.last_hidden_state
             # mean pooled embeddings
             mean_pooled_embeddings = mean_pool(last_hidden_state_, attention_mask)
             # normalized

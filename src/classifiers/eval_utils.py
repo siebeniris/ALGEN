@@ -9,10 +9,6 @@ def eval_classification(references, output, classification):
     f1_metric = evaluate.load("f1")
     accuracy_metric = evaluate.load("accuracy")
 
-    auc_metric = evaluate.load("roc_auc", "multiclass")
-    # auc_results = auc_metric.compute(references=references, prediction_scores=output,
-    #                                  multi_class="ovo")
-
     if classification == "multiclass":
         auc_metric = evaluate.load("roc_auc", classification)
         auc_results = auc_metric.compute(references=references, prediction_scores=output,
