@@ -54,7 +54,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
               batch_size=128,
               defense_method="NoDefense",
               output_dir="outputs/classifiers/",
-              epochs=6, learning_rate=2e-5):
+              epochs=6, learning_rate=3e-4):
 
     assert task_name in ["sentiment", "nli"]
     assert dataset_name in ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
@@ -148,7 +148,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
             print(f"Dev result: acc: {dev_acc}")
 
-            if dev_auc > best_acc:
+            if dev_acc > best_acc:
                 best_acc = dev_acc
 
                 print("testing ...")
