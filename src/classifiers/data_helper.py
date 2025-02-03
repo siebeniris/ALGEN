@@ -35,7 +35,6 @@ def extract_embeddings(model, dataloader, device: torch.device):
     with torch.no_grad():
         for batch in tqdm(dataloader):
             # print(batch)
-            print(batch)
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
 
@@ -55,8 +54,8 @@ def extract_embeddings(model, dataloader, device: torch.device):
             embeddings.append(normed_embeddings.cpu())
             labels.append(batch["labels"].cpu())
     # new dimension. [samples, token_length, hidden_dim]
-    embeddings = torch.stack(embeddings, dim=0)
-    labels = torch.stack(labels, dim=0)
+    embeddings = torch.cat(embeddings, dim=0)
+    labels = torch.cat(labels, dim=0)
 
     return embeddings, labels
 
