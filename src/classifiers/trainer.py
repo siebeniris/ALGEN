@@ -41,11 +41,13 @@ def evaluation_step(model, dataloader, task, device):
             embeddings, labels = batch
             embeddings, labels = embeddings.to(device), labels.to(device)
             outputs = model(embeddings)
+            print(outputs)
 
-            logits = outputs.logits
+            # logits = outputs.logits
+
             # preds = torch.argmax(logits, dim=-1)
 
-            predictions.extend(logits.cpu().numpy())
+            predictions.extend(outputs.cpu().numpy())
             true_labels.extend(labels.cpu().numpy())
 
     return eval_classification(true_labels, predictions, task)
@@ -82,6 +84,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
     if model_name in ["google-t5/t5-base", "google/mt5-base", "google-bert/bert-base-multilingual-cased"]:
         embedding_dim = 768
+        num_labels = int(num_labels)
 
         if not os.path.exists(embedding_path):
             tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -133,7 +136,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
         # create dataloader for embeddings for training.
 
-        print(f"embedding dim {embedding_dim} type {type(embedding_dim)}  num labels {num_labels}")
+        print(f"device {device}, embedding dim {embedding_dim} type {type(embedding_dim)}  num labels {num_labels}")
+
         classifier = Classifier(embedding_dim, num_labels).to(device)
 
         optimizer = torch.optim.AdamW(classifier.parameters(), lr=learning_rate)
@@ -150,7 +154,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             if dev_auc > best_acc:
                 best_acc = dev_acc
 
-                print("testing")
+                print("testing ...")
 
                 if task_name == "nli":
                     test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "multiclass",
