@@ -18,7 +18,8 @@ def eval_classification(references, output, classification):
         auc_results = auc_metric.compute(references=references, prediction_scores=output,
                                         multi_class="ovo")
     else:
-        positive_class_probs = output[:,1]
+        positive_class_probs = np.array(output)[:, 1]
+        references = np.array(references)
         auc_metric = evaluate.load("roc_auc")
         auc_results = auc_metric.compute(references=references, prediction_scores=positive_class_probs)
 
