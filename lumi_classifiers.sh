@@ -57,4 +57,4 @@ srun singularity exec \
     -B ${wd}:${wd} \
     -B ${HF_HOME}:${HF_HOME} \
     -B ${HF_DATASETS_CACHE}:${HF_DATASETS_CACHE} \
-    ${SIF} python src/classifiers/trainer.py ${dataset_name} ${task_name} ${num_labels} ${model_name} ${batch_size} ${defense_method}
+    ${SIF} python -m src.classifiers.trainer ${dataset_name} ${task_name} ${num_labels} ${model_name} ${batch_size} ${defense_method}
