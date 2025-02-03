@@ -8,7 +8,7 @@ import numpy as np
 from transformers import AutoTokenizer, AutoModel, default_data_collator
 from datasets import load_dataset
 
-from model import Classifier
+from src.classifiers.model import Classifier
 from tqdm import tqdm
 
 from src.classifiers.data_helper import EmbeddingDataset, preprocess_data, extract_embeddings, save_embeddings, load_embeddings

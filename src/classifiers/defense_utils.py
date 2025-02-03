@@ -1,6 +1,3 @@
-import torch
-import numpy as np
-
 
 def dp_gaussian_params():
     # epsilon and delta, selected for the extreme values.
