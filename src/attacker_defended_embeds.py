@@ -210,7 +210,7 @@ class DecoderInferenceDefense:
 
         T_alignment_save = os.path.join(self.outputdir, f"Trans_alignment.npz")
         print(f"saving Trans[Alignment] to {T_alignment_save}")
-        np.savez_compressed(T_alignment_save, T=T)
+        np.savez_compressed(T_alignment_save, T=T.cpu().numpy())
 
         X_val_aligned = X_p_val @ T
         X_test_aligned = X_p_test @ T
