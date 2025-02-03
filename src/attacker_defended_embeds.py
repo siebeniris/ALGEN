@@ -181,7 +181,6 @@ class DecoderInferenceDefense:
             print(f"saving Trans[WET] to {WET_save_path}")
             np.savez_compressed(WET_save_path, T=T_trans)
 
-
         elif self.defense_method == "Gaussian" and self.gaussian_noise_level:
             print(f"applying gaussian  with noise level {self.gaussian_noise_level}")
             X_p_train = insert_gaussian_noise(X_pooled_train, self.gaussian_noise_level)
