@@ -52,4 +52,4 @@ srun singularity exec \
     -B ${wd}:${wd} \
     -B ${HF_HOME}:${HF_HOME} \
     -B ${HF_DATASETS_CACHE}:${HF_DATASETS_CACHE} \
-    ${SIF} python -m src.classifiers.gaussian_noise
+    ${SIF} python -m src.classifiers.gaussian_trainer
