@@ -33,7 +33,7 @@ def train(model, dataloader, optimizer, device):
 
 
 # Evaluate function
-def evaluation_step(model, dataloader, device):
+def evaluation_step(model, dataloader, task, device):
     model.eval()
     predictions, true_labels = [], []
     with torch.no_grad():
@@ -48,7 +48,7 @@ def evaluation_step(model, dataloader, device):
             predictions.extend(prob_scores.cpu().numpy())
             true_labels.extend(labels.cpu().numpy())
 
-    return eval_classification(true_labels, predictions)
+    return eval_classification(true_labels, predictions, task)
 
 
 def fine_tune(dataset_name, task_name, num_labels, model_name,
@@ -142,11 +142,11 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
         for epoch in tqdm(range(epochs)):
             train_loss = train(classifier, train_embedding_dataloader, optimizer, device)
-            dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
-            # if task_name == "nli":
-            #     dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
-            # else:
-            #     dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
+            # dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
+            if task_name == "nli":
+                dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "multiclass", device)
+            else:
+                dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader,"binary", device)
             print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
             print(f"Dev result: acc: {dev_acc}")
 
@@ -155,14 +155,14 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
                 print("testing ...")
 
-                test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, device)
+                # test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, device)
 
-                # if task_name == "nli":
-                #     test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "multiclass",
-                #                                                               device)
-                # else:
-                #     test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "binary",
-                #                                                   device)
+                if task_name == "nli":
+                    test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "multiclass",
+                                                                              device)
+                else:
+                    test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "binary",
+                                                                  device)
 
                 test_results = {
                     "epoch": epoch,

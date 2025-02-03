@@ -2,7 +2,7 @@ import numpy as np
 import evaluate
 
 
-def eval_classification(references, output):
+def eval_classification(references, output, classification):
     # logits, labels = eval_pred
     predictions = np.argmax(output, axis=-1)
 
@@ -10,16 +10,16 @@ def eval_classification(references, output):
     accuracy_metric = evaluate.load("accuracy")
 
     auc_metric = evaluate.load("roc_auc", "multiclass")
-    auc_results = auc_metric.compute(references=references, prediction_scores=output,
-                                     multi_class="ovo")
+    # auc_results = auc_metric.compute(references=references, prediction_scores=output,
+    #                                  multi_class="ovo")
 
-    # if classification == "multiclass":
-    #     auc_metric = evaluate.load("roc_auc", classification)
-    #     auc_results = auc_metric.compute(references=references, prediction_scores=output,
-    #                                     multi_class="ovo")
-    # else:
-    #     auc_metric = evaluate.load("roc_auc")
-    #     auc_results = auc_metric.compute(references=references, prediction_scores=output)
+    if classification == "multiclass":
+        auc_metric = evaluate.load("roc_auc", classification)
+        auc_results = auc_metric.compute(references=references, prediction_scores=output,
+                                        multi_class="ovo")
+    else:
+        auc_metric = evaluate.load("roc_auc")
+        auc_results = auc_metric.compute(references=references, prediction_scores=output)
 
     auc_score = round(auc_results["roc_auc"], 4)*100
 
