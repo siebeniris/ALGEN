@@ -22,6 +22,10 @@ num_labels=$3
 model_name=$4
 batch_size=$5
 defense_method=$6
+noise_level=$7
+delta=$8
+epsilon=$9
+
 
 
 
@@ -57,4 +61,4 @@ srun singularity exec \
     -B ${wd}:${wd} \
     -B ${HF_HOME}:${HF_HOME} \
     -B ${HF_DATASETS_CACHE}:${HF_DATASETS_CACHE} \
-    ${SIF} python -m src.classifiers.trainer ${dataset_name} ${task_name} ${num_labels} ${model_name} ${batch_size} ${defense_method}
+    ${SIF} python -m src.classifiers.trainer ${dataset_name} ${task_name} ${num_labels} ${model_name} ${batch_size} ${defense_method} ${noise_level} ${delta} ${epsilon}
