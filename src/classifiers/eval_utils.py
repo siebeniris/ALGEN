@@ -2,9 +2,9 @@ import numpy as np
 import evaluate
 
 
-def eval_classification(references, logits_output, classification="binary"):
+def eval_classification(references, output, classification="binary"):
     # logits, labels = eval_pred
-    predictions = np.argmax(logits_output, axis=-1)
+    predictions = np.argmax(output, axis=-1)
 
     f1_metric = evaluate.load("f1")
     accuracy_metric = evaluate.load("accuracy")

@@ -41,13 +41,10 @@ def evaluation_step(model, dataloader, task, device):
             embeddings, labels = batch
             embeddings, labels = embeddings.to(device), labels.to(device)
             outputs = model(embeddings)
-            print(outputs)
+            # print(outputs)
+            prob_scores = torch.softmax(outputs, dim=-1)
 
-            # logits = outputs.logits
-
-            # preds = torch.argmax(logits, dim=-1)
-
-            predictions.extend(outputs.cpu().numpy())
+            predictions.extend(prob_scores.cpu().numpy())
             true_labels.extend(labels.cpu().numpy())
 
     return eval_classification(true_labels, predictions, task)
