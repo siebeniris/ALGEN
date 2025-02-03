@@ -11,12 +11,12 @@ def eval_classification(references, output, classification="binary"):
 
     if classification == "multiclass":
         auc_metric = evaluate.load("roc_auc", classification)
-        auc_results = auc_metric.compute(references=references, prediction_scores=logits_output,
+        auc_results = auc_metric.compute(references=references, prediction_scores=output,
                                         multi_class="ovo")
 
     else:
         auc_metric = evaluate.load("roc_auc")
-        auc_results = auc_metric.compute(references=references, prediction_scores=logits_output)
+        auc_results = auc_metric.compute(references=references, prediction_scores=output)
 
     auc_score = round(auc_results["roc_auc"], 4)*100
 
