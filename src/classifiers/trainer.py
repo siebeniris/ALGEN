@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 from transformers import AutoTokenizer, AutoModel, Trainer, TrainingArguments, default_data_collator
 from datasets import load_dataset
-from data_helper import EmbeddingDataset, preprocess_data, extract_embeddings
+from data_helper import EmbeddingDataset, preprocess_data, extract_embeddings, save_embeddings, load_embeddings
 from eval_utils import eval_classification
 from model import Classifier
 from tqdm import tqdm
@@ -69,51 +69,69 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
     output_dir = os.path.join(output_dir, model_name_, dataset_name_, defense_method)
     os.makedirs(output_dir, exist_ok=True)
 
+    data_dir = "datasets/"
+    embedding_dir = os.path.join(data_dir, f"{model_name_}_{dataset_name_}_{defense_method}")
+    embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
+
+    os.makedirs(embedding_dir, exist_ok=True)
+
     print(f"loading dataset... {dataset_name}")
     dataset = load_dataset(dataset_name)
 
     best_acc = - np.inf
 
     if model_name in ["google-t5/t5-base", "google/mt5-base", "google-bert/bert-base-multilingual-cased"]:
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        encoder = AutoModel.from_pretrained(model_name)
-        encoder = encoder.to(device)
+        if not os.path.exists(embedding_path):
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            encoder = AutoModel.from_pretrained(model_name)
+            encoder = encoder.to(device)
 
-        tokenized_dataset = preprocess_data(dataset, tokenizer, task_name)
+            tokenized_dataset = preprocess_data(dataset, tokenizer, task_name)
 
-        # prepare pytorch datasets.
-        train_dataset = tokenized_dataset["train"]
-        dev_dataset = tokenized_dataset["dev"]
-        test_dataset = tokenized_dataset["test"]
+            # prepare pytorch datasets.
+            train_dataset = tokenized_dataset["train"]
+            dev_dataset = tokenized_dataset["dev"]
+            test_dataset = tokenized_dataset["test"]
 
-        # dataloader
-        print(f"creating dataloaders")
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=default_data_collator)
-        dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
+            # dataloader
+            print(f"creating dataloaders")
+            train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=default_data_collator)
+            dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
+            test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
 
-        # embeddings and labels.
-        print(f"creating embeddings and labels.")
-        train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
-        dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
-        test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
+            # embeddings and labels.
+            print(f"creating embeddings and labels.")
+            train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
+            dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
+            test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
+
+            print(f"saving embeddings and labels to {data_dir}")
+            save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
+            save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
+            save_embeddings(test_embeddings, test_labels, embedding_dir, "test")
+
+
+        else:
+            print(f"Loading embeddings from {embedding_dir}")
+            train_embeddings, train_labels = load_embeddings(embedding_dir, "train")
+            dev_embeddings, dev_labels = load_embeddings(embedding_dir, "dev")
+            test_embeddings, test_labels = load_embeddings(embedding_dir, "test")
 
         # create pytorch dataset for embeddings
         print(f"creating embeddings dataset.")
-
         train_embedding_dataset = EmbeddingDataset(train_embeddings, train_labels)
         dev_embedding_dataset = EmbeddingDataset(dev_embeddings, dev_labels)
         test_embedding_dataset = EmbeddingDataset(test_embeddings, test_labels)
 
         # data loaders.
         print(f"creating embeddings dataloaders.")
-
         train_embedding_dataloader = DataLoader(train_embedding_dataset, batch_size=batch_size)
         dev_embedding_dataloader = DataLoader(dev_embedding_dataset, batch_size=batch_size)
         test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
 
         # create dataloader for embeddings for training.
-        embedding_dim = train_embeddings.shape[-1]
+        embedding_dim = train_embeddings.size()[-1]
+        print(f"embedding dim {embedding_dim}  num labels {num_labels}")
         classifier = Classifier(embedding_dim, num_labels).to(device)
 
         optimizer = torch.optim.AdamW(classifier.parameters(), lr=learning_rate)

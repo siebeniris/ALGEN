@@ -60,15 +60,16 @@ def extract_embeddings(model, dataloader, device: torch.device):
     return embeddings, labels
 
 
-def save_embeddings(embeddings, labels, save_dir):
+def save_embeddings(embeddings, labels, save_dir, data_split):
     os.makedirs(save_dir, exist_ok=True)
-    torch.save(embeddings, os.path.join(save_dir, "embeddings.pt"))
-    torch.save(labels, os.path.join(save_dir, "labels.pt"))
+    torch.save(embeddings, os.path.join(save_dir, f"{data_split}_embeddings.pt"))
+    torch.save(labels, os.path.join(save_dir, f"{data_split}_labels.pt"))
 
 
-def load_embeddings(save_dir):
-    embeddings = torch.load(os.path.join(save_dir, "embeddings.pt"))
-    labels = torch.load(os.path.join(save_dir, "labels.pt"))
+def load_embeddings(save_dir, data_split):
+    print(f"loading {data_split} embeddings from {save_dir}")
+    embeddings = torch.load(os.path.join(save_dir, f"{data_split}_embeddings.pt"))
+    labels = torch.load(os.path.join(save_dir, f"{data_split}_labels.pt"))
     return embeddings, labels
 
 
