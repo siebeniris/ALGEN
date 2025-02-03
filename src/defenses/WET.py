@@ -85,15 +85,15 @@ def defense_WET(X, X_val, X_test):
     print(f"transformation matrix shape {T_trans.shape}; condition {transformation_matrix_cond}; and rank {transformation_matrix_rank}")
     T_trans_ = torch.Tensor(T_trans).to(X.device)
 
-    X_trans = transform_X(X, T_trans)
+    X_trans = transform_X(X, T_trans_)
     print(f"shape of transformed X {X_trans.shape}")
 
-    X_val_trans = transform_X(X_val, T_trans)
+    X_val_trans = transform_X(X_val, T_trans_)
     print(f"shape of transformed X val {X_val_trans.shape}")
 
-    X_test_trans = transform_X(X_test, T_trans)
+    X_test_trans = transform_X(X_test, T_trans_)
     print(f"shape of transformed X test {X_test_trans.shape}")
 
-    return X_trans, X_val_trans, X_test_trans, T_trans_
+    return X_trans, X_val_trans, X_test_trans, T_trans
 
 
