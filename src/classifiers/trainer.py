@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 import numpy as np
-from transformers import AutoTokenizer, AutoModel, Trainer, TrainingArguments, default_data_collator
+from transformers import AutoTokenizer, AutoModel, default_data_collator
 from datasets import load_dataset
 from data_helper import EmbeddingDataset, preprocess_data, extract_embeddings, save_embeddings, load_embeddings
 from eval_utils import eval_classification
@@ -81,6 +81,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
     best_acc = - np.inf
 
     if model_name in ["google-t5/t5-base", "google/mt5-base", "google-bert/bert-base-multilingual-cased"]:
+        embedding_dim = 768
+
         if not os.path.exists(embedding_path):
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             encoder = AutoModel.from_pretrained(model_name)
@@ -130,8 +132,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
         test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
 
         # create dataloader for embeddings for training.
-        embedding_dim = train_embeddings.size()[-1]
-        print(f"embedding dim {embedding_dim}  num labels {num_labels}")
+
+        print(f"embedding dim {embedding_dim} type {type(embedding_dim)}  num labels {num_labels}")
         classifier = Classifier(embedding_dim, num_labels).to(device)
 
         optimizer = torch.optim.AdamW(classifier.parameters(), lr=learning_rate)
