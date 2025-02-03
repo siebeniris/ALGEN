@@ -21,8 +21,10 @@ def dp_guassian_embeddings(X, epsilon=1.0, delta=1e-5, sensitivity=2):
     """
     # calculate the noise scale.
     sigma = (np.sqrt(2 * np.log(1.25 / delta)) * sensitivity) / epsilon
+
     # Generate Gaussian noise
     noise = sigma * torch.normal(0, sigma, X.shape)
+    
     # Add noise to the embeddings
     noisy_embeddings = X + noise.to(X.device)
 

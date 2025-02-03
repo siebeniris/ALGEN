@@ -32,7 +32,9 @@ class DecoderInferenceDefense:
                  dp_delta: float,
                  align_train_samples: int,
                  align_test_samples: int,
-                 test_dataset: str):
+                 test_dataset: str,
+                 outputdir:str
+                 ):
         """
         Initialize the inference class.
         :param checkpoint_path:
@@ -76,6 +78,7 @@ class DecoderInferenceDefense:
         self.gaussian_noise_level = gaussian_noise_level
         self.dp_epsilon = dp_epsilon
         self.dp_delta = dp_delta
+        self.outputdir = outputdir
 
         self.device = self.trainer.device
         # load the best model
@@ -172,9 +175,12 @@ class DecoderInferenceDefense:
         # TODO: DEFNESE MECHANISMS
         if self.defense_method == "WET":
             print("applying defense WET")
-            X_p_train = defense_WET(X_pooled_train)
-            X_p_val = defense_WET(X_pooled_val)
-            X_p_test = defense_WET(X_pooled_test)
+            X_p_train, X_p_val, X_p_test, T_trans = defense_WET(X_pooled_train, X_pooled_val, X_pooled_test)
+
+            WET_save_path = os.path.join(self.outputdir, f"Trans_WET.npz")
+            print(f"saving Trans[WET] to {WET_save_path}")
+            np.savez_compressed(WET_save_path, T=T_trans)
+
 
         elif self.defense_method == "Gaussian" and self.gaussian_noise_level:
             print(f"applying gaussian  with noise level {self.gaussian_noise_level}")
@@ -184,7 +190,6 @@ class DecoderInferenceDefense:
 
         elif self.defense_method == "Shuffling":
             print(f"applying defense shuffling")
-            # pass
             X_p_train, X_p_val, X_p_test, Y_test_attention_perm = shuffle_embeddings(X_pooled_train, X_pooled_val,
                                                                                     X_pooled_test, Y_test_attention)
             Y_test_attention = Y_test_attention_perm
@@ -203,6 +208,10 @@ class DecoderInferenceDefense:
         # train data to align.
         X_aligned, T = self.mapping_X_to_Y_pooled(X_p_train, Y_pooled_train)
         self.source_hidden_dim, self.target_hidden_dim = T.shape
+
+        T_alignment_save = os.path.join(self.outputdir, f"Trans_alignment.npz")
+        print(f"saving Trans[Alignment] to {T_alignment_save}")
+        np.savez_compressed(T_alignment_save, T=T)
 
         X_val_aligned = X_p_val @ T
         X_test_aligned = X_p_test @ T
@@ -304,7 +313,7 @@ def defense_output(checkpoint_path: str,
 
     decoderInference = DecoderInferenceDefense(checkpoint_path, source_model_name, defense_method,
                                                gaussian_noise_level, dp_epsilon, dp_delta,
-                                               train_samples, test_samples, test_data)
+                                               train_samples, test_samples, test_data, output_dir)
 
     test_results, preds, references = decoderInference.test()
     # TODO: add translation here.
@@ -326,7 +335,6 @@ def defense_output(checkpoint_path: str,
     print(results_dict)
 
     print(f"writing the results to {output_dir}")
-    os.makedirs(output_dir, exist_ok=True)
     df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
     with open(os.path.join(output_dir, "results.json"), "w") as f:
         json.dump(results_dict, f)
@@ -367,9 +375,9 @@ def main(
             defense_output(checkpoint_path, outputdir, "NoDefense", 0, 0, 0, test_data, source_model_name,
                            train_samples, test_samples)
 
-            # for defense_method in ["WET", "Shuffling"]:
-            #     defense_output(checkpoint_path, outputdir, defense_method, 0, 0, 0, test_data, source_model_name,
-            #                    train_samples, test_samples)
+            for defense_method in ["WET"]:  # Shuffling
+                defense_output(checkpoint_path, outputdir, defense_method, 0, 0, 0,
+                               test_data, source_model_name, train_samples, test_samples)
             #
             # for noise_level in guassian_noise_levels:
             #     defense_output(checkpoint_path, outputdir, "Gaussian", noise_level, 0, 0, test_data, source_model_name,

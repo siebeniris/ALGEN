@@ -54,7 +54,22 @@ def get_transformation_matrix_cyclic(w, n, k):
     return torch.stack(mat)
 
 
-def defense_WET(X):
+def transform_X(X, T_trans):
+    nr_sample, X_dim = X.shape
+    X_trans_stack = []
+    for i in range(nr_sample):
+        X_i = X[i]
+        X_i_trans = torch.mm(T_trans, X_i.reshape(X_dim, 1)).reshape(-1)
+        X_i_trans_normed = X_i_trans / torch.norm(X_i_trans, p=2, dim=0, keepdim=True)
+        assert len(X_i_trans_normed) == X_dim
+        assert torch.norm(X_i_trans_normed, p=2, dim=0, keepdim=True) > .999999
+        X_trans_stack.append(X_i_trans_normed)
+
+    X_trans = torch.stack(X_trans_stack, axis=0)
+    return X_trans
+
+
+def defense_WET(X, X_val, X_test):
     nr_sample, X_dim = X.shape
     print(f"nr sample {nr_sample}, source shape {X_dim}")
 
@@ -67,20 +82,18 @@ def defense_WET(X):
     T_trans = get_transformation_matrix_cyclic(n, k, w)
     transformation_matrix_cond = np.linalg.cond(T_trans)
     transformation_matrix_rank = np.linalg.matrix_rank(T_trans)
-    print(f"transformation matrix condition {transformation_matrix_cond} and rank {transformation_matrix_rank}")
-    T_trans = torch.Tensor(T_trans).to(X.device)
+    print(f"transformation matrix shape {T_trans.shape}; condition {transformation_matrix_cond}; and rank {transformation_matrix_rank}")
+    T_trans_ = torch.Tensor(T_trans).to(X.device)
 
-    X_trans_stack = []
-    for i in range(nr_sample):
-        X_i = X[i]
-        X_i_trans = torch.mm(T_trans, X_i.reshape(X_dim, 1)).reshape(-1)
-        X_i_trans_normed = X_i_trans / torch.norm(X_i_trans, p=2, dim=0, keepdim=True)
-        assert len(X_i_trans_normed) == n
-        assert torch.norm(X_i_trans_normed, p=2, dim=0, keepdim=True) > .999999
-        X_trans_stack.append(X_i_trans_normed)
-
-    X_trans = torch.stack(X_trans_stack, axis=0)
+    X_trans = transform_X(X, T_trans)
     print(f"shape of transformed X {X_trans.shape}")
-    return X_trans
+
+    X_val_trans = transform_X(X_val, T_trans)
+    print(f"shape of transformed X val {X_val_trans.shape}")
+
+    X_test_trans = transform_X(X_test, T_trans)
+    print(f"shape of transformed X test {X_test_trans.shape}")
+
+    return X_trans, X_val_trans, X_test_trans, T_trans_
 
 
