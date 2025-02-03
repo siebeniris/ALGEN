@@ -41,7 +41,7 @@ def evaluation_step(model, dataloader, task, device):
             embeddings, labels = batch
             embeddings, labels = embeddings.to(device), labels.to(device)
             outputs = model(embeddings)
-            # print(outputs)
+            print(outputs)
             prob_scores = F.softmax(outputs, dim=-1)
             print(prob_scores)
 
