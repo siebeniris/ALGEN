@@ -7,10 +7,17 @@ import torch.nn.functional as F
 import numpy as np
 from transformers import AutoTokenizer, AutoModel, default_data_collator
 from datasets import load_dataset
-from data_helper import EmbeddingDataset, preprocess_data, extract_embeddings, save_embeddings, load_embeddings
-from eval_utils import eval_classification
+
 from model import Classifier
 from tqdm import tqdm
+
+from src.classifiers.data_helper import EmbeddingDataset, preprocess_data, extract_embeddings, save_embeddings, load_embeddings
+from src.classifiers.eval_utils import eval_classification
+
+from src.defenses.WET import defense_WET
+from src.defenses.gaussian_noise import insert_gaussian_noise, dp_guassian_embeddings
+from src.defenses.shuffling import shuffle_only_embeddings
+
 
 
 # Train function
@@ -41,9 +48,9 @@ def evaluation_step(model, dataloader, task, device):
             embeddings, labels = batch
             embeddings, labels = embeddings.to(device), labels.to(device)
             outputs = model(embeddings)
-            print(outputs)
+            # print(outputs)
             prob_scores = F.softmax(outputs, dim=-1)
-            print(prob_scores)
+            # print(prob_scores)
 
             predictions.extend(prob_scores.cpu().numpy())
             true_labels.extend(labels.cpu().numpy())
@@ -54,6 +61,9 @@ def evaluation_step(model, dataloader, task, device):
 def fine_tune(dataset_name, task_name, num_labels, model_name,
               batch_size=128,
               defense_method="NoDefense",
+              noise_level=0,
+              delta=0,
+              epsilon=0,
               output_dir="outputs/classifiers/",
               epochs=6, learning_rate=3e-4):
 
@@ -110,6 +120,42 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
             test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
 
+
+            # apply defense.
+            if defense_method == "Shuffling":
+                print(f"applying {defense_method}")
+                train_embeddings, dev_embeddings, test_embeddings = shuffle_only_embeddings(train_embeddings, dev_embeddings, test_embeddings)
+
+            elif defense_method == "Gaussian":
+                print(f"applying {defense_method} with noise level {noise_level}")
+                assert noise_level > 0.0
+                train_embeddings = insert_gaussian_noise(train_embeddings, noise_level=noise_level)
+                dev_embeddings = insert_gaussian_noise(dev_embeddings, noise_level=noise_level)
+                test_embeddings = insert_gaussian_noise(test_embeddings, noise_level=noise_level)
+
+            elif defense_method == "dp_Gaussian":
+                print(f"applying {defense_method} with delta {delta} and epsilon {epsilon}")
+                assert delta > 0.0
+                assert epsilon > 0.0
+
+                train_embeddings = dp_guassian_embeddings(train_embeddings, epsilon=epsilon, delta=delta)
+                dev_embeddings = dp_guassian_embeddings(dev_embeddings, epsilon=epsilon, delta=delta)
+                test_embeddings = dp_guassian_embeddings(test_embeddings, epsilon=epsilon, delta=delta)
+
+            elif defense_method == "WET":
+                print(f"applying {defense_method}")
+                train_embeddings, dev_embeddings, test_embeddings, T_trans = defense_WET(train_embeddings, dev_embeddings, test_embeddings)
+                WET_save_path = os.path.join(output_dir, f"Trans_WET.npz")
+                print(f"saving Trans[WET] to {WET_save_path}")
+                np.savez_compressed(WET_save_path, T=T_trans)
+
+            else:
+                train_embeddings = train_embeddings
+                dev_embeddings = dev_embeddings
+                test_embeddings = test_embeddings
+
+            print(f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
+
             print(f"saving embeddings and labels to {data_dir}")
             save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
             save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
@@ -135,7 +181,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
         test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
 
         # create dataloader for embeddings for training.
-
         print(f"device {device}, embedding dim {embedding_dim} type {type(embedding_dim)}  num labels {num_labels}")
 
         classifier = Classifier(embedding_dim, num_labels).to(device)
@@ -156,9 +201,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                 best_acc = dev_acc
 
                 print("testing ...")
-
-                # test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, device)
-
                 if task_name == "nli":
                     test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "multiclass",
                                                                               device)
