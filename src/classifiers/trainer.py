@@ -56,6 +56,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
               defense_method="NoDefense",
               output_dir="outputs/classifiers/",
               epochs=6, learning_rate=2e-5):
+
     assert task_name in ["sentiment", "nli"]
     assert dataset_name in ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
 
@@ -112,7 +113,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
         test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
 
         # create dataloader for embeddings for training.
-        embedding_dim = train_embedding_dataset.shape[-1]
+        embedding_dim = train_embeddings.shape[-1]
         classifier = Classifier(embedding_dim, num_labels).to(device)
 
         optimizer = torch.optim.AdamW(classifier.parameters(), lr=learning_rate)
