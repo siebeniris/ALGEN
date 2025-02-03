@@ -1,5 +1,5 @@
 #!/bin/bash -e
-#SBATCH --job-name=fewshot-attacker
+#SBATCH --job-name=attacker_defenses
 #SBATCH --account=project_465001270
 #SBATCH --partition=small-g
 #SBATCH --gpus-per-node=1
@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=7
 #SBATCH --mem-per-gpu=50G
 #SBATCH --time=12:00:00
-#SBATCH --output=decoder_%j.out
-#SBATCH --error=decoder_%j.err
+#SBATCH --output=defenses_%j.out
+#SBATCH --error=defenses_%j.err
 
 set -x
 
