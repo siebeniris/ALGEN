@@ -80,7 +80,9 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
     best_acc = - np.inf
 
-    if model_name in ["google-t5/t5-base", "google/mt5-base", "google-bert/bert-base-multilingual-cased"]:
+    if model_name in ["google-t5/t5-base", "google/mt5-base",
+                      "sentence-transformers/gtr-t5-base",
+                      "google-bert/bert-base-multilingual-cased"]:
         embedding_dim = 768
         num_labels = int(num_labels)
 
