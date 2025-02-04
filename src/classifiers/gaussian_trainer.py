@@ -22,7 +22,7 @@ def dp_gaussian_trainer():
                     num_labels =2
 
                 fine_tune(dataset_name, task, num_labels, model_name,
-                          128, "dp_Gaussian",
+                          128, "Gaussian",
                           noise_level, 0, 0)
 
 if __name__ == '__main__':
