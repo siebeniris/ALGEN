@@ -11,13 +11,13 @@ from datasets import load_dataset
 from src.classifiers.model import Classifier
 from tqdm import tqdm
 
-from src.classifiers.data_helper import EmbeddingDataset, preprocess_data, extract_embeddings, save_embeddings, load_embeddings
+from src.classifiers.data_helper import EmbeddingDataset, preprocess_data, extract_embeddings, save_embeddings, \
+    load_embeddings
 from src.classifiers.eval_utils import eval_classification
 
 from src.defenses.WET import defense_WET
 from src.defenses.gaussian_noise import insert_gaussian_noise, dp_guassian_embeddings
 from src.defenses.shuffling import shuffle_only_embeddings
-
 
 
 # Train function
@@ -66,7 +66,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
               epsilon=0,
               output_dir="outputs/classifiers/",
               epochs=6, learning_rate=3e-4):
-
     assert task_name in ["sentiment", "nli"]
     assert dataset_name in ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
 
@@ -82,6 +81,16 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
     data_dir = "datasets/"
     embedding_dir = os.path.join(data_dir, f"{model_name_}_{dataset_name_}_{defense_method}")
     embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
+
+    if defense_method == "Gaussian":
+        embedding_dir = os.path.join(embedding_dir, f"noise_{noise_level}")
+        embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
+        print(f"embedding dir {embedding_dir}")
+
+    elif defense_method == "dp_Gaussian":
+        embedding_dir = os.path.join(embedding_dir, f"delta_{delta}_epsilon_{epsilon}")
+        embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
+        print(f"embedding dir {embedding_dir}")
 
     os.makedirs(embedding_dir, exist_ok=True)
 
@@ -110,7 +119,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
             # dataloader
             print(f"creating dataloaders")
-            train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=default_data_collator)
+            train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+                                          collate_fn=default_data_collator)
             dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
             test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
 
@@ -120,11 +130,12 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
             test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
 
-
             # apply defense.
             if defense_method == "Shuffling":
                 print(f"applying {defense_method}")
-                train_embeddings, dev_embeddings, test_embeddings = shuffle_only_embeddings(train_embeddings, dev_embeddings, test_embeddings)
+                train_embeddings, dev_embeddings, test_embeddings = shuffle_only_embeddings(train_embeddings,
+                                                                                            dev_embeddings,
+                                                                                            test_embeddings)
 
             elif defense_method == "Gaussian":
                 print(f"applying {defense_method} with noise level {noise_level}")
@@ -151,7 +162,9 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
             elif defense_method == "WET":
                 print(f"applying {defense_method}")
-                train_embeddings, dev_embeddings, test_embeddings, T_trans = defense_WET(train_embeddings, dev_embeddings, test_embeddings)
+                train_embeddings, dev_embeddings, test_embeddings, T_trans = defense_WET(train_embeddings,
+                                                                                         dev_embeddings,
+                                                                                         test_embeddings)
 
                 WET_save_path = os.path.join(output_dir, f"Trans_WET.npz")
                 print(f"saving Trans[WET] to {WET_save_path}")
@@ -162,7 +175,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                 dev_embeddings = dev_embeddings
                 test_embeddings = test_embeddings
 
-            print(f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
+            print(
+                f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
 
             print(f"saving embeddings and labels to {data_dir}")
             save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
@@ -201,7 +215,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             if task_name == "nli":
                 dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "multiclass", device)
             else:
-                dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader,"binary", device)
+                dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "binary", device)
             print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
             print(f"Dev result: acc: {dev_acc}")
 
@@ -211,7 +225,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                 print("testing ...")
                 if task_name == "nli":
                     test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "multiclass",
-                                                                              device)
+                                                                  device)
                 else:
                     test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "binary",
                                                                   device)
