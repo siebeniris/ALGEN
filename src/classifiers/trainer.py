@@ -1,5 +1,6 @@
 import json
 import os
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -7,17 +8,22 @@ import torch.nn.functional as F
 import numpy as np
 from transformers import AutoTokenizer, AutoModel, default_data_collator
 from datasets import load_dataset
-
-from src.classifiers.model import Classifier
+import glob
 from tqdm import tqdm
 
+from src.classifiers.model import Classifier
 from src.classifiers.data_helper import EmbeddingDataset, preprocess_data, extract_embeddings, save_embeddings, \
     load_embeddings
 from src.classifiers.eval_utils import eval_classification
-
 from src.defenses.WET import defense_WET
 from src.defenses.gaussian_noise import insert_gaussian_noise, dp_guassian_embeddings
 from src.defenses.shuffling import shuffle_only_embeddings
+
+
+def check_pattern_in_directory(directory, pattern="epoch_*_results.json"):
+    """Check if any file in a directory matches the given pattern."""
+    matching_files = glob.glob(os.path.join(directory, pattern))
+    return bool(matching_files), matching_files
 
 
 # Train function
@@ -204,58 +210,64 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             dev_embeddings, dev_labels = load_embeddings(embedding_dir, "dev")
             test_embeddings, test_labels = load_embeddings(embedding_dir, "test")
 
-        # create pytorch dataset for embeddings
-        print(f"creating embeddings dataset.")
-        train_embedding_dataset = EmbeddingDataset(train_embeddings, train_labels)
-        dev_embedding_dataset = EmbeddingDataset(dev_embeddings, dev_labels)
-        test_embedding_dataset = EmbeddingDataset(test_embeddings, test_labels)
+        #TODO: IF THE DIRECTORY HAS RESULTS, SKIP.
+        found, files = check_pattern_in_directory(output_dir)
+        print(f"found results...{files}")
+        if not found:
+            # create pytorch dataset for embeddings
+            print(f"creating embeddings dataset.")
+            train_embedding_dataset = EmbeddingDataset(train_embeddings, train_labels)
+            dev_embedding_dataset = EmbeddingDataset(dev_embeddings, dev_labels)
+            test_embedding_dataset = EmbeddingDataset(test_embeddings, test_labels)
 
-        # data loaders.
-        print(f"creating embeddings dataloaders.")
-        train_embedding_dataloader = DataLoader(train_embedding_dataset, batch_size=batch_size)
-        dev_embedding_dataloader = DataLoader(dev_embedding_dataset, batch_size=batch_size)
-        test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
+            # data loaders.
+            print(f"creating embeddings dataloaders.")
+            train_embedding_dataloader = DataLoader(train_embedding_dataset, batch_size=batch_size)
+            dev_embedding_dataloader = DataLoader(dev_embedding_dataset, batch_size=batch_size)
+            test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
 
-        # create dataloader for embeddings for training.
-        print(f"device {device}, embedding dim {embedding_dim} type {type(embedding_dim)}  num labels {num_labels}")
+            # create dataloader for embeddings for training.
+            print(f"device {device}, embedding dim {embedding_dim} type {type(embedding_dim)}  num labels {num_labels}")
 
-        classifier = Classifier(embedding_dim, num_labels).to(device)
+            classifier = Classifier(embedding_dim, num_labels).to(device)
 
-        optimizer = torch.optim.AdamW(classifier.parameters(), lr=learning_rate)
+            optimizer = torch.optim.AdamW(classifier.parameters(), lr=learning_rate)
 
-        for epoch in tqdm(range(epochs)):
-            train_loss = train(classifier, train_embedding_dataloader, optimizer, device)
-            # dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
-            if task_name == "nli":
-                dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "multiclass", device)
-            else:
-                dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "binary", device)
-            print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
-            print(f"Dev result: acc: {dev_acc}")
-
-            if dev_acc > best_acc:
-                best_acc = dev_acc
-
-                print("testing ...")
+            for epoch in tqdm(range(epochs)):
+                train_loss = train(classifier, train_embedding_dataloader, optimizer, device)
+                # dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
                 if task_name == "nli":
-                    test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "multiclass",
-                                                                  device)
+                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "multiclass", device)
                 else:
-                    test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "binary",
-                                                                  device)
+                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "binary", device)
+                print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
+                print(f"Dev result: acc: {dev_acc}")
 
-                test_results = {
-                    "epoch": epoch,
-                    "dev_acc": best_acc,
-                    "test_acc": test_acc,
-                    "test_f1": test_f1,
-                    "test_roc": test_auc
-                }
-                print(test_results)
-                print(f"writing test results to {output_dir}")
+                if dev_acc > best_acc:
+                    best_acc = dev_acc
 
-                with open(os.path.join(output_dir, f"epoch_{epoch}_results.json"), "w") as f:
-                    json.dump(test_results, f)
+                    print("testing ...")
+                    if task_name == "nli":
+                        test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "multiclass",
+                                                                      device)
+                    else:
+                        test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "binary",
+                                                                      device)
+
+                    test_results = {
+                        "epoch": epoch,
+                        "dev_acc": best_acc,
+                        "test_acc": test_acc,
+                        "test_f1": test_f1,
+                        "test_roc": test_auc
+                    }
+                    print(test_results)
+                    print(f"writing test results to {output_dir}")
+
+                    with open(os.path.join(output_dir, f"epoch_{epoch}_results.json"), "w") as f:
+                        json.dump(test_results, f)
+        else:
+            print(f"Already finished. ")
 
 
 if __name__ == '__main__':
