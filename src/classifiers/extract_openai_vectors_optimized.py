@@ -65,7 +65,7 @@ def get_vectors(texts, model):
                 await asyncio.sleep(REQUEST_INTERVAL)  # Respect rate limit
 
             # Run requests in parallel with timeout handling
-            results = await tqdm.gather(*tasks, return_exceptions=True)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
         return [torch.tensor(embedding) for batch in results if batch for embedding in batch]
 
