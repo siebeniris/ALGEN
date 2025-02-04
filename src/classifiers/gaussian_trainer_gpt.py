@@ -3,7 +3,8 @@ from src.classifiers.trainer import fine_tune
 
 source_models = ["text-embedding-ada-002"]
 
-datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
+# datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
+datasets_names = [ "yiyic/sst2_ds"]
 tasks = ["sentiment", "nli"]
 
 noise_levels = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
