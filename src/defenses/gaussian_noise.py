@@ -19,6 +19,7 @@ def dp_guassian_embeddings(X, epsilon=1.0, delta=1e-5, sensitivity=2):
     :param sensitivity: the sensitivity of the embedding.
     :return:
     """
+    print(f"applying DP with Gaussian Mechanism epsilon {epsilon} delta {delta}")
     # calculate the noise scale.
     sigma = (np.sqrt(2 * np.log(1.25 / delta)) * sensitivity) / epsilon
 
