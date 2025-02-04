@@ -5,7 +5,7 @@ import datasets
 import tiktoken
 import asyncio
 import aiohttp
-
+from tqdm import tqdm
 from src.classifiers.data_helper import save_embeddings
 
 import time
@@ -51,7 +51,7 @@ def get_vectors(texts, model):
         tasks = []
 
         async with aiohttp.ClientSession() as session:
-            for i in range(0, len(texts), BATCH_SIZE):
+            for i in tqdm(range(0, len(texts), BATCH_SIZE)):
                 batch = texts[i:i + BATCH_SIZE]
                 tasks.append(fetch_embedding(session, batch, semaphore))
                 await asyncio.sleep(REQUEST_INTERVAL)  # Stay under API rate limit

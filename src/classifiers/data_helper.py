@@ -3,6 +3,7 @@ import torch
 import os
 from tqdm import tqdm
 
+
 def mean_pool(
         hidden_states: torch.Tensor, attention_mask: torch.Tensor
 ) -> torch.Tensor:

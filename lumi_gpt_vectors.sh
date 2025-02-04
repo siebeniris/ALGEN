@@ -4,7 +4,7 @@
 #SBATCH --partition=small
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=128
-#SBATCH --time=15:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=vector_extractor_%j.out
 #SBATCH --error=vector_extractor_%j.err
 
@@ -22,14 +22,6 @@ export HF_DATASETS_CACHE="/scratch/project_465001270/.cache/datasets"
 export DATASET_CACHE_PATH="/scratch/project_465001270/.cache"
 export WANDB_CACHE_DIR="/scratch/project_465001270/.cache/wandb/artifcats/"
 export HUGGINGFACE_HUB_TOKEN="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"
-
-export NCCL_P2P_LEVEL=PHB
-export NCCL_DEBUG=INFO
-export NCCL_DEBUG_SUBSYS=INIT
-
-export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
-export NCCL_SOCKET_IFNAME=hsn0,hsn1,hsn2,hsn3
-export NCCL_NET_GDR_LEVEL=3
 
 
 # pytorch multiprocessing. semaphore.

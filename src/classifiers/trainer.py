@@ -214,8 +214,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                 dev_embeddings, dev_labels = load_embeddings(embedding_dir, "dev")
                 test_embeddings, test_labels = load_embeddings(embedding_dir, "test")
 
-            # IF THE DIRECTORY HAS RESULTS, SKIP.
-
             # create pytorch dataset for embeddings
             print(f"creating embeddings dataset.")
             train_embedding_dataset = EmbeddingDataset(train_embeddings, train_labels)
