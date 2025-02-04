@@ -129,6 +129,10 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             elif defense_method == "Gaussian":
                 print(f"applying {defense_method} with noise level {noise_level}")
                 assert noise_level > 0.0
+
+                output_dir = os.path.join(output_dir, f"noise_{noise_level}")
+                os.makedirs(output_dir, exist_ok=True)
+
                 train_embeddings = insert_gaussian_noise(train_embeddings, noise_level=noise_level)
                 dev_embeddings = insert_gaussian_noise(dev_embeddings, noise_level=noise_level)
                 test_embeddings = insert_gaussian_noise(test_embeddings, noise_level=noise_level)
@@ -138,6 +142,9 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                 assert delta > 0.0
                 assert epsilon > 0.0
 
+                output_dir = os.path.join(output_dir, f"delta_{delta}_epsilon_{epsilon}")
+                os.makedirs(output_dir, exist_ok=True)
+
                 train_embeddings = dp_guassian_embeddings(train_embeddings, epsilon=epsilon, delta=delta)
                 dev_embeddings = dp_guassian_embeddings(dev_embeddings, epsilon=epsilon, delta=delta)
                 test_embeddings = dp_guassian_embeddings(test_embeddings, epsilon=epsilon, delta=delta)
@@ -145,6 +152,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             elif defense_method == "WET":
                 print(f"applying {defense_method}")
                 train_embeddings, dev_embeddings, test_embeddings, T_trans = defense_WET(train_embeddings, dev_embeddings, test_embeddings)
+
                 WET_save_path = os.path.join(output_dir, f"Trans_WET.npz")
                 print(f"saving Trans[WET] to {WET_save_path}")
                 np.savez_compressed(WET_save_path, T=T_trans)
