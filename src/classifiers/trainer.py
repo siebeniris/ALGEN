@@ -222,7 +222,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
             # data loaders.
             print(f"creating embeddings dataloaders.")
-            train_embedding_dataloader = DataLoader(train_embedding_dataset, batch_size=batch_size)
+            train_embedding_dataloader = DataLoader(train_embedding_dataset, batch_size=batch_size, drop_last=True)
             dev_embedding_dataloader = DataLoader(dev_embedding_dataset, batch_size=batch_size)
             test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
 
