@@ -7,7 +7,7 @@ import asyncio
 import aiohttp
 from tqdm import tqdm
 from src.classifiers.data_helper import save_embeddings
-
+import numpy as np
 import time
 
 API_KEY = os.environ.get("OPENAI_API_KEY", "<your OpenAI API key if not set as env var>")
@@ -70,7 +70,9 @@ def get_vectors(texts, model):
     print(f"Finished processing all embeddings in {end_time - start_time:.2f} seconds.")
 
     return torch.stack(embeddings, dim=0)
-
+def chunk_list(texts, num_chunks=10):
+    """Splits a list into num_chunks parts as evenly as possible."""
+    return np.array_split(texts, num_chunks)
 
 def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_dir="datasets/"):
     # encoder
@@ -94,8 +96,16 @@ def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_di
 
     train_texts, dev_texts, test_texts = get_texts(dataset)
 
+    train_texts_chunks = chunk_list(train_texts, num_chunks=5)
+
     print("Loading dataset texts")
-    train_vectors = get_vectors(train_texts, model_name)
+
+    train_vectors_ls = []
+    for chunk in tqdm(train_texts_chunks):
+        vectors = get_vectors(list(chunk), model_name)
+        train_vectors_ls.append(vectors)
+    train_vectors = torch.cat(train_vectors_ls, dim=0)
+
     dev_vectors = get_vectors(dev_texts, model_name)
     test_vectors = get_vectors(test_texts, model_name)
     print(train_vectors)
@@ -116,7 +126,8 @@ def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_di
 
 if __name__ == '__main__':
     gpt_embedders = ["text-embedding-ada-002"]
-    datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
+    # datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
+    datasets_names = ["yiyic/s140_ds"]
 
     for gpt_embedder in gpt_embedders:
         for dataset_name in datasets_names:

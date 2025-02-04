@@ -107,6 +107,7 @@ def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_di
 
     print("Getting dataset texts vectors")
 
+
     train_vectors = get_vectors(train_texts, model_name)
     print(train_vectors)
     print(f"saving train embeddings and labels to {embedding_dir}")
