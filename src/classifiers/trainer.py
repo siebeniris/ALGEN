@@ -85,9 +85,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
     os.makedirs(output_dir, exist_ok=True)
 
     data_dir = "datasets/"
-    embedding_dir_nodefense= os.path.join(data_dir, f"{model_name_}_{dataset_name_}_NoDefense")
+    embedding_dir_nodefense = os.path.join(data_dir, f"{model_name_}_{dataset_name_}_NoDefense")
     embedding_path_nodefense = os.path.join(embedding_dir_nodefense, "train_embeddings.pt")
-
 
     embedding_dir = os.path.join(data_dir, f"{model_name_}_{dataset_name_}_{defense_method}")
     embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
@@ -97,10 +96,18 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
         embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
         print(f"embedding dir {embedding_dir}")
 
+        output_dir = os.path.join(output_dir, f"noise_{noise_level}")
+        print(f"output dir {output_dir}")
+        os.makedirs(output_dir, exist_ok=True)
+
     elif defense_method == "dp_Gaussian":
         embedding_dir = os.path.join(embedding_dir, f"delta_{delta}_epsilon_{epsilon}")
         embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
         print(f"embedding dir {embedding_dir}")
+
+        output_dir = os.path.join(output_dir, f"delta_{delta}_epsilon_{epsilon}")
+        print(f"output dir {output_dir}")
+        os.makedirs(output_dir, exist_ok=True)
 
     os.makedirs(embedding_dir, exist_ok=True)
 
@@ -108,15 +115,21 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
     dataset = load_dataset(dataset_name)
 
     best_acc = - np.inf
+    assert model_name in ["google-t5/t5-base", "google/mt5-base",
+                          "sentence-transformers/gtr-t5-base",
+                          "google-bert/bert-base-multilingual-cased",
+                          "text-embedding-ada-002"]
 
-    if model_name in ["google-t5/t5-base", "google/mt5-base",
-                      "sentence-transformers/gtr-t5-base",
-                      "google-bert/bert-base-multilingual-cased",
-                      "text-embedding-ada-002"]:
-        embedding_dim = 768
-        num_labels = int(num_labels)
+    found, files = check_pattern_in_directory(output_dir)
+    print(f"found results...{files}")
 
-        if not os.path.exists(embedding_path):
+    embedding_dim = 768
+    num_labels = int(num_labels)
+
+    if not found:
+        print("no results found, training the classifier.")
+        if not os.path.exists(embedding_path_nodefense):
+            # then we need to extract embeddings.
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             encoder = AutoModel.from_pretrained(model_name)
             encoder = encoder.to(device)
@@ -135,19 +148,27 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
             test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
 
-            if defense_method!="NoDefense":
-                # check if the defense method should be applied.
-                if os.path.exists(embedding_path_nodefense):
-                    # if there are already embeddings, we don't need to extract again, just apply defense directly on them.
-                    print(f"loading the embeddings from {embedding_dir_nodefense}")
-                    train_embeddings, train_labels = load_embeddings(embedding_dir_nodefense, "train")
-                    dev_embeddings, dev_labels = load_embeddings(embedding_dir_nodefense, "dev")
-                    test_embeddings, test_labels = load_embeddings(embedding_dir_nodefense, "test")
-                else:
-                    print(f"creating embeddings and labels because no defense embedidngs do not exist")
-                    train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
-                    dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
-                    test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
+            # embeddings and labels.
+            print(f"NoDefense embeddings ==== > creating embeddings and labels.")
+            train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
+            dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
+            test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
+
+            print(
+                f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
+
+            print(f"saving embeddings and labels to {data_dir}")
+            save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
+            save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
+            save_embeddings(test_embeddings, test_labels, embedding_dir, "test")
+
+        else:
+            print("NoDefense embeddings exists.")
+            if not os.path.exists(embedding_path):
+                print(f"Loading embeddings from NoDefense path {embedding_dir_nodefense}")
+                train_embeddings, train_labels = load_embeddings(embedding_dir_nodefense, "train")
+                dev_embeddings, dev_labels = load_embeddings(embedding_dir_nodefense, "dev")
+                test_embeddings, test_labels = load_embeddings(embedding_dir_nodefense, "test")
 
                 if defense_method == "Shuffling":
 
@@ -160,9 +181,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                     print(f"applying {defense_method} with noise level {noise_level}")
                     assert noise_level > 0.0
 
-                    output_dir = os.path.join(output_dir, f"noise_{noise_level}")
-                    os.makedirs(output_dir, exist_ok=True)
-
                     train_embeddings = insert_gaussian_noise(train_embeddings, noise_level=noise_level)
                     dev_embeddings = insert_gaussian_noise(dev_embeddings, noise_level=noise_level)
                     test_embeddings = insert_gaussian_noise(test_embeddings, noise_level=noise_level)
@@ -171,9 +189,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                     print(f"applying {defense_method} with delta {delta} and epsilon {epsilon}")
                     assert delta > 0.0
                     assert epsilon > 0.0
-
-                    output_dir = os.path.join(output_dir, f"delta_{delta}_epsilon_{epsilon}")
-                    os.makedirs(output_dir, exist_ok=True)
 
                     train_embeddings = dp_guassian_embeddings(train_embeddings, epsilon=epsilon, delta=delta)
                     dev_embeddings = dp_guassian_embeddings(dev_embeddings, epsilon=epsilon, delta=delta)
@@ -190,30 +205,13 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                     np.savez_compressed(WET_save_path, T=T_trans)
 
             else:
-                # embeddings and labels.
-                print(f"NoDefense ==== > creating embeddings and labels.")
-                train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
-                dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
-                test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
+                print(f"Loading embeddings from {embedding_dir}")
+                train_embeddings, train_labels = load_embeddings(embedding_dir, "train")
+                dev_embeddings, dev_labels = load_embeddings(embedding_dir, "dev")
+                test_embeddings, test_labels = load_embeddings(embedding_dir, "test")
 
-            print(
-                f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
+            # IF THE DIRECTORY HAS RESULTS, SKIP.
 
-            print(f"saving embeddings and labels to {data_dir}")
-            save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
-            save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
-            save_embeddings(test_embeddings, test_labels, embedding_dir, "test")
-
-        else:
-            print(f"Loading embeddings from {embedding_dir}")
-            train_embeddings, train_labels = load_embeddings(embedding_dir, "train")
-            dev_embeddings, dev_labels = load_embeddings(embedding_dir, "dev")
-            test_embeddings, test_labels = load_embeddings(embedding_dir, "test")
-
-        #TODO: IF THE DIRECTORY HAS RESULTS, SKIP.
-        found, files = check_pattern_in_directory(output_dir)
-        print(f"found results...{files}")
-        if not found:
             # create pytorch dataset for embeddings
             print(f"creating embeddings dataset.")
             train_embedding_dataset = EmbeddingDataset(train_embeddings, train_labels)
@@ -237,7 +235,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                 train_loss = train(classifier, train_embedding_dataloader, optimizer, device)
                 # dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
                 if task_name == "nli":
-                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "multiclass", device)
+                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "multiclass",
+                                                               device)
                 else:
                     dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "binary", device)
                 print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
@@ -248,11 +247,11 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
                     print("testing ...")
                     if task_name == "nli":
-                        test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "multiclass",
-                                                                      device)
+                        test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader,
+                                                                    "multiclass", device)
                     else:
-                        test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader, "binary",
-                                                                      device)
+                        test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader,
+                                                                    "binary", device)
 
                     test_results = {
                         "epoch": epoch,
@@ -266,8 +265,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
                     with open(os.path.join(output_dir, f"epoch_{epoch}_results.json"), "w") as f:
                         json.dump(test_results, f)
-        else:
-            print(f"Already finished. ")
+    else:
+        print(f"Already finished. ")
 
 
 if __name__ == '__main__':
