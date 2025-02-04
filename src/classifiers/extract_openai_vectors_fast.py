@@ -95,7 +95,7 @@ def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_di
     train_texts, dev_texts, test_texts = get_texts(dataset)
 
     print("Loading dataset texts")
-    train_vectors = get_vectors(train_texts[:100], model_name)
+    train_vectors = get_vectors(train_texts, model_name)
     dev_vectors = get_vectors(dev_texts, model_name)
     test_vectors = get_vectors(test_texts, model_name)
     print(train_vectors)

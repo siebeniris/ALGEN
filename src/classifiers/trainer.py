@@ -123,7 +123,11 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
     found, files = check_pattern_in_directory(output_dir)
     print(f"found results...{files}")
 
-    embedding_dim = 768
+    if model_name == "text-embedding-ada-002":
+        embedding_dim = 1536
+    else:
+        embedding_dim = 768
+
     num_labels = int(num_labels)
 
     if not found:
