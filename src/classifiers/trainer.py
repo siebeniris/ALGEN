@@ -79,6 +79,10 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
     os.makedirs(output_dir, exist_ok=True)
 
     data_dir = "datasets/"
+    embedding_dir_nodefense= os.path.join(data_dir, f"{model_name_}_{dataset_name_}_NoDefense")
+    embedding_path_nodefense = os.path.join(embedding_dir_nodefense, "train_embeddings.pt")
+
+
     embedding_dir = os.path.join(data_dir, f"{model_name_}_{dataset_name_}_{defense_method}")
     embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
 
@@ -101,7 +105,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
     if model_name in ["google-t5/t5-base", "google/mt5-base",
                       "sentence-transformers/gtr-t5-base",
-                      "google-bert/bert-base-multilingual-cased"]:
+                      "google-bert/bert-base-multilingual-cased",
+                      "text-embedding-ada-002"]:
         embedding_dim = 768
         num_labels = int(num_labels)
 
@@ -124,56 +129,66 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
             test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
 
-            # embeddings and labels.
-            print(f"creating embeddings and labels.")
-            train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
-            dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
-            test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
+            if defense_method!="NoDefense":
+                # check if the defense method should be applied.
+                if os.path.exists(embedding_path_nodefense):
+                    # if there are already embeddings, we don't need to extract again, just apply defense directly on them.
+                    print(f"loading the embeddings from {embedding_dir_nodefense}")
+                    train_embeddings, train_labels = load_embeddings(embedding_dir_nodefense, "train")
+                    dev_embeddings, dev_labels = load_embeddings(embedding_dir_nodefense, "dev")
+                    test_embeddings, test_labels = load_embeddings(embedding_dir_nodefense, "test")
+                else:
+                    print(f"creating embeddings and labels because no defense embedidngs do not exist")
+                    train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
+                    dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
+                    test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
 
-            # apply defense.
-            if defense_method == "Shuffling":
-                print(f"applying {defense_method}")
-                train_embeddings, dev_embeddings, test_embeddings = shuffle_only_embeddings(train_embeddings,
-                                                                                            dev_embeddings,
-                                                                                            test_embeddings)
+                if defense_method == "Shuffling":
 
-            elif defense_method == "Gaussian":
-                print(f"applying {defense_method} with noise level {noise_level}")
-                assert noise_level > 0.0
+                    print(f"applying {defense_method}")
+                    train_embeddings, dev_embeddings, test_embeddings = shuffle_only_embeddings(train_embeddings,
+                                                                                                dev_embeddings,
+                                                                                                test_embeddings)
 
-                output_dir = os.path.join(output_dir, f"noise_{noise_level}")
-                os.makedirs(output_dir, exist_ok=True)
+                elif defense_method == "Gaussian":
+                    print(f"applying {defense_method} with noise level {noise_level}")
+                    assert noise_level > 0.0
 
-                train_embeddings = insert_gaussian_noise(train_embeddings, noise_level=noise_level)
-                dev_embeddings = insert_gaussian_noise(dev_embeddings, noise_level=noise_level)
-                test_embeddings = insert_gaussian_noise(test_embeddings, noise_level=noise_level)
+                    output_dir = os.path.join(output_dir, f"noise_{noise_level}")
+                    os.makedirs(output_dir, exist_ok=True)
 
-            elif defense_method == "dp_Gaussian":
-                print(f"applying {defense_method} with delta {delta} and epsilon {epsilon}")
-                assert delta > 0.0
-                assert epsilon > 0.0
+                    train_embeddings = insert_gaussian_noise(train_embeddings, noise_level=noise_level)
+                    dev_embeddings = insert_gaussian_noise(dev_embeddings, noise_level=noise_level)
+                    test_embeddings = insert_gaussian_noise(test_embeddings, noise_level=noise_level)
 
-                output_dir = os.path.join(output_dir, f"delta_{delta}_epsilon_{epsilon}")
-                os.makedirs(output_dir, exist_ok=True)
+                elif defense_method == "dp_Gaussian":
+                    print(f"applying {defense_method} with delta {delta} and epsilon {epsilon}")
+                    assert delta > 0.0
+                    assert epsilon > 0.0
 
-                train_embeddings = dp_guassian_embeddings(train_embeddings, epsilon=epsilon, delta=delta)
-                dev_embeddings = dp_guassian_embeddings(dev_embeddings, epsilon=epsilon, delta=delta)
-                test_embeddings = dp_guassian_embeddings(test_embeddings, epsilon=epsilon, delta=delta)
+                    output_dir = os.path.join(output_dir, f"delta_{delta}_epsilon_{epsilon}")
+                    os.makedirs(output_dir, exist_ok=True)
 
-            elif defense_method == "WET":
-                print(f"applying {defense_method}")
-                train_embeddings, dev_embeddings, test_embeddings, T_trans = defense_WET(train_embeddings,
-                                                                                         dev_embeddings,
-                                                                                         test_embeddings)
+                    train_embeddings = dp_guassian_embeddings(train_embeddings, epsilon=epsilon, delta=delta)
+                    dev_embeddings = dp_guassian_embeddings(dev_embeddings, epsilon=epsilon, delta=delta)
+                    test_embeddings = dp_guassian_embeddings(test_embeddings, epsilon=epsilon, delta=delta)
 
-                WET_save_path = os.path.join(output_dir, f"Trans_WET.npz")
-                print(f"saving Trans[WET] to {WET_save_path}")
-                np.savez_compressed(WET_save_path, T=T_trans)
+                elif defense_method == "WET":
+                    print(f"applying {defense_method}")
+                    train_embeddings, dev_embeddings, test_embeddings, T_trans = defense_WET(train_embeddings,
+                                                                                             dev_embeddings,
+                                                                                             test_embeddings)
+
+                    WET_save_path = os.path.join(output_dir, f"Trans_WET.npz")
+                    print(f"saving Trans[WET] to {WET_save_path}")
+                    np.savez_compressed(WET_save_path, T=T_trans)
 
             else:
-                train_embeddings = train_embeddings
-                dev_embeddings = dev_embeddings
-                test_embeddings = test_embeddings
+                # embeddings and labels.
+                print(f"NoDefense ==== > creating embeddings and labels.")
+                train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
+                dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
+                test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
 
             print(
                 f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
@@ -182,7 +197,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
             save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
             save_embeddings(test_embeddings, test_labels, embedding_dir, "test")
-
 
         else:
             print(f"Loading embeddings from {embedding_dir}")

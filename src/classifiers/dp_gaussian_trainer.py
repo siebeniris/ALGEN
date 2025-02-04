@@ -41,5 +41,6 @@ def dp_gaussian_trainer():
                           128, "dp_Gaussian",
                           0, delta, epsilon)
 
+
 if __name__ == '__main__':
     dp_gaussian_trainer()
