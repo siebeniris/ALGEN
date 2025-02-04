@@ -58,7 +58,7 @@ def get_vectors(texts, model):
         tasks = []
 
         async with aiohttp.ClientSession() as session:
-            for i in range(0, len(texts), BATCH_SIZE):
+            for i in tqdm(range(0, len(texts), BATCH_SIZE)):
                 batch = texts[i:i + BATCH_SIZE]
                 task = asyncio.create_task(fetch_embedding(session, batch, semaphore))  # Non-blocking tasks
                 tasks.append(task)
@@ -127,7 +127,7 @@ def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_di
 
 if __name__ == '__main__':
     gpt_embedders = ["text-embedding-ada-002"]
-    datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
+    datasets_names = ["yiyic/s140_ds"]
 
     for gpt_embedder in gpt_embedders:
         for dataset_name in datasets_names:
