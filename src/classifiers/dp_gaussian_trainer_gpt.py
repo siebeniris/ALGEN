@@ -3,7 +3,9 @@ from src.classifiers.trainer import fine_tune
 
 source_models = ["text-embedding-ada-002"]
 
-datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
+# datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
+datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds"]
+
 tasks = ["sentiment", "nli"]
 
 # epsilon_delta_l = [(0.01, 0.001), (0.5, 0.0001), (0.01, 0.0001)]

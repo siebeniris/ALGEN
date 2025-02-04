@@ -100,28 +100,29 @@ def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_di
 
     print("Loading dataset texts")
 
+    train_labels = torch.tensor(dataset["train"]["label"])
+    dev_labels = torch.tensor(dataset["dev"]["label"])
+    test_labels = torch.tensor(dataset["test"]["label"])
+
     train_vectors_ls = []
     for chunk in tqdm(train_texts_chunks):
         vectors = get_vectors(list(chunk), model_name)
         train_vectors_ls.append(vectors)
     train_vectors = torch.cat(train_vectors_ls, dim=0)
+    print(f"saving train embeddings and labels to {embedding_dir}")
+
+    save_embeddings(train_vectors, train_labels, embedding_dir, "train")
 
     dev_vectors = get_vectors(dev_texts, model_name)
+    save_embeddings(dev_vectors, dev_labels, embedding_dir, "dev")
+
     test_vectors = get_vectors(test_texts, model_name)
+    save_embeddings(test_vectors, test_labels, embedding_dir, "test")
+
     print(train_vectors)
-
-    # get labels
-    train_labels = torch.tensor(dataset["train"]["label"])
-    dev_labels = torch.tensor(dataset["dev"]["label"])
-    test_labels = torch.tensor(dataset["test"]["label"])
-
     print(
         f"embeddings shape: train {train_vectors.shape}, dev {dev_vectors.shape}, test {test_vectors.shape}")
 
-    print(f"saving embeddings and labels to {embedding_dir}")
-    save_embeddings(train_vectors, train_labels, embedding_dir, "train")
-    save_embeddings(dev_vectors, dev_labels, embedding_dir, "dev")
-    save_embeddings(test_vectors, test_labels, embedding_dir, "test")
 
 
 if __name__ == '__main__':
