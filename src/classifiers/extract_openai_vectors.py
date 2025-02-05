@@ -60,14 +60,14 @@ def extract_vectors_per_dataset(dataset_name, model_name="text-embedding-ada-002
     encoder = tiktoken.encoding_for_model(model_name)
 
     def truncate_text(example, max_length):
-        tokens = encoder.encode("[CLS]" + example["text"] + "[SEP]")
+        tokens = encoder.encode(example["text"])
         truncated_tokens = tokens[:max_length]
         # print(truncated_tokens)
         example["text"] = encoder.decode(truncated_tokens)
         return example
 
     def truncate_text_SNLI(example, max_length):
-        tokens = encoder.encode("[CLS]" + example["premise"] + "[SEP]" + example["hypothesis"] + "[SEP]")
+        tokens = encoder.encode(example["premise"] + "[SEP]" + example["hypothesis"])
         truncated_tokens = tokens[:max_length]
         # print(truncated_tokens)
         example["text"] = encoder.decode(truncated_tokens)
