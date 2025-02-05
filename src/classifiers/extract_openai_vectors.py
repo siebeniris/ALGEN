@@ -55,13 +55,21 @@ def get_vectors(texts, model):
     return torch.stack(embeddings, dim=0)
 
 
-def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_dir="datasets/"):
+def extract_vectors_per_dataset(dataset_name, model_name="text-embedding-ada-002", max_length=32, data_dir="datasets/"):
     # encoder
     encoder = tiktoken.encoding_for_model(model_name)
 
     def truncate_text(example, max_length):
-        tokens = encoder.encode(example["text"])
+        tokens = encoder.encode("[CLS]" + example["text"] + "[SEP]")
         truncated_tokens = tokens[:max_length]
+        print(truncated_tokens)
+        example["text"] = encoder.decode(truncated_tokens)
+        return example
+
+    def truncate_text_SNLI(example, max_length):
+        tokens = encoder.encode("[CLS]" + example["premise"] + "[SEP]" + example["hypothesis"] + "[SEP]")
+        truncated_tokens = tokens[:max_length]
+        # print(truncated_tokens)
         example["text"] = encoder.decode(truncated_tokens)
         return example
 
@@ -73,11 +81,15 @@ def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_di
     dataset = datasets.load_dataset(dataset_name)
 
     print("Truncating texts ...")
-    dataset = dataset.map(lambda x: truncate_text(x, max_length=max_length))
+    if dataset_name == "yiyic/snli_ds":
+        dataset = dataset.map(lambda x: truncate_text_SNLI(x, max_length=max_length))
+    else:
+        dataset = dataset.map(lambda x: truncate_text(x, max_length=max_length))
 
     train_texts, dev_texts, test_texts = get_texts(dataset)
 
     print("Loading dataset texts")
+
     train_vectors = get_vectors(train_texts, model_name)
     dev_vectors = get_vectors(dev_texts, model_name)
     test_vectors = get_vectors(test_texts, model_name)
@@ -97,14 +109,17 @@ def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_di
 
 
 if __name__ == '__main__':
-    gpt_embedders = ["text-embedding-ada-002"]
-    # datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
-    datasets_names = ["yiyic/s140_ds"]
+    import plac
+
+    plac.call(extract_vectors_per_dataset)
+    # gpt_embedders = []
+    # # datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
+    # datasets_names = ["yiyic/snli_ds"]
+    #
     # extract_vectors_per_dataset(gpt_embedders[0], datasets_names[0], max_length=32, data_dir="datasets/")
 
-
-    for gpt_embedder in gpt_embedders:
-        for dataset_name in datasets_names:
-            print(f"extracting embeddings from {gpt_embedder} with dataset {dataset_name}")
-            extract_vectors_per_dataset(gpt_embedder, dataset_name, max_length=32, data_dir="datasets/")
-
+    #
+    # for gpt_embedder in gpt_embedders:
+    #     for dataset_name in datasets_names:
+    #         print(f"extracting embeddings from {gpt_embedder} with dataset {dataset_name}")
+    #         extract_vectors_per_dataset(gpt_embedder, dataset_name, max_length=32, data_dir="datasets/")
