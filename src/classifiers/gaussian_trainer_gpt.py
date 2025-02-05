@@ -9,7 +9,7 @@ tasks = ["sentiment", "nli"]
 noise_levels = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
 
 
-def dp_gaussian_trainer(dataset_name):
+def gaussian_trainer(dataset_name):
     for model_name in source_models:
         for noise_level in noise_levels:
             if dataset_name == "yiyic/snli_ds":
@@ -25,4 +25,5 @@ def dp_gaussian_trainer(dataset_name):
 
 
 if __name__ == '__main__':
-    dp_gaussian_trainer()
+    import plac
+    plac.call(gaussian_trainer)
