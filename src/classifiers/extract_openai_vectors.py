@@ -99,7 +99,7 @@ def extract_vectors_per_dataset(model_name, dataset_name, max_length=32, data_di
 if __name__ == '__main__':
     gpt_embedders = ["text-embedding-ada-002"]
     # datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
-    datasets_names = ["yiyic/snli_ds", "yiyic/s140_ds"]
+    datasets_names = ["yiyic/s140_ds"]
     # extract_vectors_per_dataset(gpt_embedders[0], datasets_names[0], max_length=32, data_dir="datasets/")
 
 
