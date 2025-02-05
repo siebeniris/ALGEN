@@ -1,5 +1,6 @@
 import json
 import os
+import random
 
 import torch
 import torch.nn as nn
@@ -19,6 +20,16 @@ from src.defenses.WET import defense_WET
 from src.defenses.gaussian_noise import insert_gaussian_noise, dp_guassian_embeddings
 from src.defenses.shuffling import shuffle_only_embeddings
 
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # For multi-GPU setups
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 def check_pattern_in_directory(directory, pattern="epoch_*_results.json"):
     """Check if any file in a directory matches the given pattern."""
@@ -74,6 +85,9 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
               epochs=6, learning_rate=3e-4):
     assert task_name in ["sentiment", "nli"]
     assert dataset_name in ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
+
+
+    set_seed(42)
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     print(f"device {device}")
