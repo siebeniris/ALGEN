@@ -16,9 +16,9 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", "<your OpenAI API key i
 
 
 def get_texts(dataset):
-    train_texts = dataset["train"]["text"]
-    test_texts = dataset["test"]["text"]
+    train_texts = dataset["train"]["text"][:489790]
     val_texts = dataset["dev"]["text"]
+    test_texts = dataset["test"]["text"]
     return train_texts, val_texts, test_texts
 
 
@@ -95,7 +95,7 @@ def extract_vectors_per_dataset(dataset_name, model_name="text-embedding-ada-002
     test_vectors = get_vectors(test_texts, model_name)
 
     # get labels
-    train_labels = torch.tensor(dataset["train"]["label"])
+    train_labels = torch.tensor(dataset["train"]["label"][:489790])
     dev_labels = torch.tensor(dataset["dev"]["label"])
     test_labels = torch.tensor(dataset["test"]["label"])
 
