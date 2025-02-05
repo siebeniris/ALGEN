@@ -41,6 +41,7 @@ export PYTHONWARNINGS='ignore:semaphore_tracker:UserWarning'
 
 SIF=/scratch/project_465001270/multivec2text.sif
 
+DATASET=$1
 
 echo $SIF
 chmod +x $HF_HOME
@@ -52,4 +53,4 @@ srun singularity exec \
     -B ${wd}:${wd} \
     -B ${HF_HOME}:${HF_HOME} \
     -B ${HF_DATASETS_CACHE}:${HF_DATASETS_CACHE} \
-    ${SIF} python -m src.classifiers.gaussian_trainer_gpt
+    ${SIF} python -m src.classifiers.gaussian_trainer_gpt ${DATASET}
