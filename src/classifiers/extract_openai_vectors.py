@@ -62,7 +62,7 @@ def extract_vectors_per_dataset(dataset_name, model_name="text-embedding-ada-002
     def truncate_text(example, max_length):
         tokens = encoder.encode("[CLS]" + example["text"] + "[SEP]")
         truncated_tokens = tokens[:max_length]
-        print(truncated_tokens)
+        # print(truncated_tokens)
         example["text"] = encoder.decode(truncated_tokens)
         return example
 
