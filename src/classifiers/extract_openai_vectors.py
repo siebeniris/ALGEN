@@ -66,9 +66,9 @@ def extract_vectors_per_dataset(dataset_name, model_name="text-embedding-ada-002
         example["text"] = encoder.decode(truncated_tokens)
         return example
 
-    def truncate_text_SNLI(example, max_length):
+    def truncate_text_SNLI(example):
         tokens = encoder.encode(example["premise"] + "[SEP]" + example["hypothesis"])
-        truncated_tokens = tokens[:max_length]
+        truncated_tokens = tokens
         # print(truncated_tokens)
         example["text"] = encoder.decode(truncated_tokens)
         return example
@@ -82,7 +82,7 @@ def extract_vectors_per_dataset(dataset_name, model_name="text-embedding-ada-002
 
     print("Truncating texts ...")
     if dataset_name == "yiyic/snli_ds":
-        dataset = dataset.map(lambda x: truncate_text_SNLI(x, max_length=max_length))
+        dataset = dataset.map(lambda x: truncate_text_SNLI(x))
     else:
         dataset = dataset.map(lambda x: truncate_text(x, max_length=max_length))
 
