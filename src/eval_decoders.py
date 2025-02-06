@@ -174,7 +174,7 @@ class DecoderInference:
 
 
 def main(
-        checkpoint_path="outputs/google_flan-t5-small/eng_maxlength32_train100_batch_size64_lr0.0001_wd1e-05_epochs50"
+        checkpoint_path="outputs/google_flan-t5-small/yiyic_multiHPLT_english_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100"
 ):
     test_samples = 200
     if "flan-t5-small" in checkpoint_path:
@@ -219,3 +219,8 @@ def main(
                     with open(os.path.join(output_dir, "results.json"), "w") as f:
                         json.dump(results_dict, f)
                     print("*" * 40)
+
+
+if __name__ == '__main__':
+    import plac
+    plac.call(main)
