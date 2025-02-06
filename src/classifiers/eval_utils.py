@@ -8,8 +8,10 @@ def eval_classification(references, output, num_labels, classification):
         predictions = np.argmax(output, axis=-1)
         print(predictions)
     else:
-        predictions = (output > 0.5).int()
+        output_array = np.array(output)
+        predictions = (output_array > 0.5).astype(int)
         print(predictions)
+
 
     if classification == "multiclass":
         print("multiclass auc metric")
