@@ -174,10 +174,17 @@ class DecoderInference:
 
 
 def main(
-        checkpoint_path="outputs/google_flan-t5-small/yiyic_multiHPLT_english_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100"
+        # checkpoint_path="outputs/google_flan-t5-small/yiyic_multiHPLT_english_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100"
 ):
     test_samples = 200
-    if "flan-t5-small" in checkpoint_path:
+
+    checkpoints = ["yiyic_mmarco_english_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100",
+                   "yiyic_mmarco_french_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100",
+                   "yiyic_mmarco_german_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100",
+                   "yiyic_mmarco_spanish_maxlength32_train150000_batch_size128_lr0.0001_wd0.0001_epochs100"]
+    for checkpoint in checkpoints:
+        checkpoint_path = os.path.join("outputs/google_flan-t5-small", checkpoint)
+
         datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german",
                           "yiyic/mmarco_spanish", "yiyic/mmarco_french"]
 
