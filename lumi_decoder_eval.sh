@@ -51,4 +51,4 @@ srun singularity exec \
     -B ${wd}:${wd} \
     -B ${HF_HOME}:${HF_HOME} \
     -B ${HF_DATASETS_CACHE}:${HF_DATASETS_CACHE} \
-    ${SIF} python src/eval_decoder.py ${CHECKPOINT_PATH}
+    ${SIF} python src/eval_decoders.py ${CHECKPOINT_PATH}
