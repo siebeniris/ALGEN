@@ -9,7 +9,8 @@ def eval_classification(references, output, num_labels, classification):
         print(predictions)
     else:
         output_array = np.array(output)
-        predictions = (output_array > 0.5).astype(int)
+        predictions = np.argmax(output_array, axis=-1)
+        # predictions = (output_array > 0.5).astype(int)
         print(predictions)  # [[0 1],[0 1], [1,0]]
 
     if classification == "multiclass":
