@@ -76,7 +76,7 @@ def evaluation_step(model, num_labels, dataloader, task, device):
             predictions.extend(prob_scores.cpu().numpy())
             true_labels.extend(labels.cpu().numpy())
 
-    return eval_classification(true_labels, predictions, task)
+    return eval_classification(true_labels, predictions, num_labels, task)
 
 
 def fine_tune(dataset_name, task_name, num_labels, model_name,
@@ -192,7 +192,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                 test_embeddings, test_labels = load_embeddings(embedding_dir_nodefense, "test")
 
                 if defense_method == "Shuffling":
-
                     print(f"applying {defense_method}")
                     train_embeddings, dev_embeddings, test_embeddings = shuffle_only_embeddings(train_embeddings,
                                                                                                 dev_embeddings,
@@ -224,6 +223,12 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                     WET_save_path = os.path.join(output_dir, f"Trans_WET.npz")
                     print(f"saving Trans[WET] to {WET_save_path}")
                     np.savez_compressed(WET_save_path, T=T_trans)
+
+                print(f"saving embeddings to {embedding_dir} ...")
+                save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
+                save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
+                save_embeddings(test_embeddings, test_labels, embedding_dir, "test")
+
 
             else:
                 print(f"Loading embeddings from {embedding_dir}")
