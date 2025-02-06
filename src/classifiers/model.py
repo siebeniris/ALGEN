@@ -8,15 +8,21 @@ class Classifier(nn.Module):
         self.input_dim = input_dim
 
         # for gpt models.
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.fc2 = nn.Linear(512, num_labels)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(p=dropout_rate)
-        self.fc = nn.Linear(input_dim, num_labels)
+        if self.input_dim > 768:
+            self.fc1 = nn.Linear(input_dim, 1024)  # Increased hidden units for larger embeddings
+            self.fc2 = nn.Linear(1024, num_labels)
+            self.relu = nn.ReLU()
+            self.dropout = nn.Dropout(p=dropout_rate)
+
+            # Layer for smaller input (e.g., BERT embeddings)
+        else:
+            self.dropout = nn.Dropout(p=dropout_rate)
+            self.fc = nn.Linear(input_dim, num_labels)
+
 
     def forward(self, x):
         if self.input_dim > 768:
-            print("Using the model specific for GPT embeddings")
+            # print("Using the model specific for GPT embeddings")
             x = self.dropout(x)
             x = self.fc1(x)
             x = self.relu(x)
