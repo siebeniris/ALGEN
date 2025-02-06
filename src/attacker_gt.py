@@ -254,19 +254,19 @@ def main(
     source_model_names = [
         # "text-embedding-ada-002",
         # "text-embedding-3-large",
-        # "sentence-transformers/gtr-t5-base",
+        "sentence-transformers/gtr-t5-base",
         # "intfloat/multilingual-e5-base",
         # "google/flan-t5-base",
-        "google-t5/t5-base",
-        "google/mt5-base",
-        # "google-bert/bert-base-multilingual-cased",
-        "sentence-transformers/all-MiniLM-L6-v2"  # sbert
+        # "google-t5/t5-base",
+        # "google/mt5-base",
+        "google-bert/bert-base-multilingual-cased",
+        # "sentence-transformers/all-MiniLM-L6-v2"  # sbert
     ]
 
     for source_model_name in source_model_names:
         for test_data in tqdm(datasets_names):
-            for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
-            # for train_samples in [2000, 3000, 4000, 5000, 6000, 7000, 8000]:
+            # for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
+            for train_samples in [2000, 3000, 4000, 5000, 6000, 7000, 8000]:
                 source_model_name_ = source_model_name.replace("/", "_")
                 test_dataset_ = test_data.replace("/", "_")
                 output_dir = os.path.join(checkpoint_path,
