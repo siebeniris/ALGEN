@@ -20,7 +20,7 @@ def eval_classification(references, output, num_labels, classification):
                                          multi_class="ovo")
     else:
         print("binary class auc metric")
-        positive_class_probs = output[:, 1].numpy()
+        positive_class_probs = output_array[:, 1]
         references = np.array(references)
         auc_metric = evaluate.load("roc_auc")
         auc_results = auc_metric.compute(references=references, prediction_scores=positive_class_probs)
