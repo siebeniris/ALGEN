@@ -31,6 +31,7 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+
 def check_pattern_in_directory(directory, pattern="epoch_*_results.json"):
     """Check if any file in a directory matches the given pattern."""
     matching_files = glob.glob(os.path.join(directory, pattern))
@@ -57,7 +58,7 @@ def train(model, dataloader, optimizer, device):
 
 
 # Evaluate function
-def evaluation_step(model, dataloader, task, device):
+def evaluation_step(model, num_labels, dataloader, task, device):
     model.eval()
     predictions, true_labels = [], []
     with torch.no_grad():
@@ -66,7 +67,10 @@ def evaluation_step(model, dataloader, task, device):
             embeddings, labels = embeddings.to(device), labels.to(device)
             outputs = model(embeddings)
             # print(outputs)
-            prob_scores = F.softmax(outputs, dim=-1)
+            if num_labels > 2:
+                prob_scores = F.softmax(outputs, dim=-1)
+            else:
+                prob_scores = torch.sigmoid(outputs)
             # print(prob_scores)
 
             predictions.extend(prob_scores.cpu().numpy())
@@ -85,7 +89,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
               epochs=6, learning_rate=3e-4):
     assert task_name in ["sentiment", "nli"]
     assert dataset_name in ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
-
 
     set_seed(42)
 
@@ -251,10 +254,12 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                 train_loss = train(classifier, train_embedding_dataloader, optimizer, device)
                 # dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
                 if task_name == "nli":
-                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "multiclass",
+                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, num_labels, dev_embedding_dataloader,
+                                                               "multiclass",
                                                                device)
                 else:
-                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, "binary", device)
+                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, num_labels, dev_embedding_dataloader,
+                                                               "binary", device)
                 print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
                 print(f"Dev result: acc: {dev_acc}")
 
@@ -263,11 +268,11 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
                     print("testing ...")
                     if task_name == "nli":
-                        test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader,
-                                                                    "multiclass", device)
+                        test_acc, test_f1, test_auc = evaluation_step(classifier, num_labels, test_embedding_dataloader,
+                                                                      "multiclass", device)
                     else:
-                        test_acc, test_f1, test_auc = evaluation_step(classifier, test_embedding_dataloader,
-                                                                    "binary", device)
+                        test_acc, test_f1, test_auc = evaluation_step(classifier, num_labels, test_embedding_dataloader,
+                                                                      "binary", device)
 
                     test_results = {
                         "epoch": epoch,

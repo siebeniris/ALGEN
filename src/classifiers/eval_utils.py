@@ -2,24 +2,32 @@ import numpy as np
 import evaluate
 
 
-def eval_classification(references, output, classification):
+def eval_classification(references, output, num_labels, classification):
     # logits, labels = eval_pred
-    predictions = np.argmax(output, axis=-1)
+    if num_labels>2:
+        predictions = np.argmax(output, axis=-1)
+        print(predictions)
+    else:
+        predictions = (output >0.5).int()
+        print(predictions)
 
-    f1_metric = evaluate.load("f1")
-    accuracy_metric = evaluate.load("accuracy")
 
     if classification == "multiclass":
+        print("multiclass auc metric")
         auc_metric = evaluate.load("roc_auc", classification)
         auc_results = auc_metric.compute(references=references, prediction_scores=output,
                                         multi_class="ovo")
     else:
-        positive_class_probs = np.array(output)[:, 1]
+        print("binary class auc")
+        positive_class_probs = output[:,1].numpy()
         references = np.array(references)
         auc_metric = evaluate.load("roc_auc")
         auc_results = auc_metric.compute(references=references, prediction_scores=positive_class_probs)
 
     auc_score = round(auc_results["roc_auc"], 4)*100
+
+    f1_metric = evaluate.load("f1")
+    accuracy_metric = evaluate.load("accuracy")
 
     f1_result = f1_metric.compute(predictions=predictions, references=references,
                                   average="macro" if classification=="multiclass" else "binary")
