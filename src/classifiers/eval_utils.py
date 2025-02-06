@@ -10,8 +10,7 @@ def eval_classification(references, output, num_labels, classification):
     else:
         output_array = np.array(output)
         predictions = (output_array > 0.5).astype(int)
-        print(predictions)
-
+        print(predictions)  # [[0 1],[0 1], [1,0]]
 
     if classification == "multiclass":
         print("multiclass auc metric")
@@ -21,6 +20,7 @@ def eval_classification(references, output, num_labels, classification):
     else:
         print("binary class auc metric")
         positive_class_probs = output_array[:, 1]
+        print(positive_class_probs)
         references = np.array(references)
         auc_metric = evaluate.load("roc_auc")
         auc_results = auc_metric.compute(references=references, prediction_scores=positive_class_probs)
