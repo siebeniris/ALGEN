@@ -1,0 +1,1 @@
+{"test_samples": 200, "source_model": "google/flan-t5-small", "test_results": {"bleu": 38.94, "bleu1": 62.27, "bleu2": 40.68, "bleu3": 33.53, "bleu4": 29.82, "rougeL": 0.5416, "rouge1": 0.6207, "rouge2": 0.4096, "exact_match": 0.0}}
