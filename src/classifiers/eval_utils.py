@@ -12,9 +12,9 @@ def eval_classification(references, output, num_labels, classification):
     else:
         predictions = np.argmax(output_array, axis=-1)
         # predictions = (output_array > 0.5).astype(int)
-
-    print("output", output_array)
-    print("prediction", predictions) # [[0 1],[0 1], [1,0]]
+    #
+    # print("output", output_array)
+    # print("prediction", predictions) # [[0 1],[0 1], [1,0]]
 
     if classification == "multiclass":
         print("multiclass auc metric")
