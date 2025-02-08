@@ -21,6 +21,7 @@ from tqdm import tqdm
 from defenses.WET import defense_WET
 from defenses.gaussian_noise import insert_gaussian_noise, dp_guassian_embeddings
 from defenses.shuffling import shuffle_embeddings
+from defenses.ldp import LapMech, PurMech
 
 
 class DecoderInferenceDefense:
@@ -198,6 +199,19 @@ class DecoderInferenceDefense:
             X_p_train = dp_guassian_embeddings(X_pooled_train, self.dp_epsilon, self.dp_delta)
             X_p_val = dp_guassian_embeddings(X_pooled_val, self.dp_epsilon, self.dp_delta)
             X_p_test = dp_guassian_embeddings(X_pooled_test, self.dp_epsilon, self.dp_delta)
+
+        elif self.defense_method == "PurMech" and self.dp_epsilon > 0:
+            print(f"applying PurMech with epislon {self.dp_epsilon}")
+            X_p_train = PurMech(X_pooled_train, self.dp_epsilon)
+            X_p_val = PurMech(X_pooled_val, self.dp_epsilon)
+            X_p_test = PurMech(X_pooled_test, self.dp_epsilon)
+
+        elif self.defense_method == "LapMech" and self.dp_epsilon > 0:
+            print(f"applying LapMech with epislon {self.dp_epsilon}")
+            X_p_train = LapMech(X_pooled_train, self.dp_epsilon)
+            X_p_val = LapMech(X_pooled_val, self.dp_epsilon)
+            X_p_test = LapMech(X_pooled_test, self.dp_epsilon)
+
         else:
             print("No defense applied.")
             X_p_train = X_pooled_train
@@ -349,7 +363,7 @@ def main(
     # write a loop on source model names.
     source_model_names = [
         "text-embedding-ada-002",
-        "text-embedding-3-large",
+        # "text-embedding-3-large",
         "sentence-transformers/gtr-t5-base",
         # "intfloat/multilingual-e5-base",
         # "google/flan-t5-base",
@@ -371,12 +385,23 @@ def main(
             delta_list = [1e-3, 1e-4, 1e-5, 1e-6]
             epsilon_list = [0.01, 0.05, 0.1, 0.5, 1.0]
 
-            defense_output(checkpoint_path, outputdir, "NoDefense", 0, 0, 0, test_data, source_model_name,
-                           train_samples, test_samples)
+            epsilon_list_dp = [1,4,8,12]
 
-            for defense_method in ["WET"]:  # Shuffling
-                defense_output(checkpoint_path, outputdir, defense_method, 0, 0, 0,
-                               test_data, source_model_name, train_samples, test_samples)
+            for epsilon in epsilon_list_dp:
+                defense_output(checkpoint_path, outputdir, "PurMech", 0, epsilon, 0,
+                               test_data, source_model_name,
+                               train_samples, test_samples)
+
+                defense_output(checkpoint_path, outputdir, "LapMech", 0, epsilon, 0,
+                               test_data, source_model_name,
+                               train_samples, test_samples)
+
+            # defense_output(checkpoint_path, outputdir, "NoDefense", 0, 0, 0, test_data, source_model_name,
+            #                train_samples, test_samples)
+            #
+            # for defense_method in ["WET"]:  # Shuffling
+            #     defense_output(checkpoint_path, outputdir, defense_method, 0, 0, 0,
+            #                    test_data, source_model_name, train_samples, test_samples)
             #
             # for noise_level in guassian_noise_levels:
             #     defense_output(checkpoint_path, outputdir, "Gaussian", noise_level, 0, 0, test_data, source_model_name,
