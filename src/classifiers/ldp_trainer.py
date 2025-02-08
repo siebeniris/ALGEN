@@ -10,7 +10,7 @@ datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
 tasks = ["sentiment", "nli"]
 
 defenses = ["PurMech", "LapMech"]
-epsilon_l = [1, 2, 4, 6, 8, 10, 12]
+epsilon_l = [1, 4, 8, 12]
 
 
 def ldp_trainer(dataset_name):

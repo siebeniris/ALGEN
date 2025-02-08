@@ -127,6 +127,25 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
         print(f"output dir {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
 
+    elif defense_method == "PurMech":
+        embedding_dir = os.path.join(embedding_dir, f"epsilon_{epsilon}")
+        embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
+        print(f"embedding dir {embedding_dir}")
+
+        output_dir = os.path.join(output_dir, f"epsilon_{epsilon}")
+        print(f"output dir {output_dir}")
+        os.makedirs(output_dir, exist_ok=True)
+
+    elif defense_method == "LapMech":
+        embedding_dir = os.path.join(embedding_dir, f"epsilon_{epsilon}")
+        embedding_path = os.path.join(embedding_dir, "train_embeddings.pt")
+        print(f"embedding dir {embedding_dir}")
+
+        output_dir = os.path.join(output_dir, f"epsilon_{epsilon}")
+        print(f"output dir {output_dir}")
+        os.makedirs(output_dir, exist_ok=True)
+
+
     os.makedirs(embedding_dir, exist_ok=True)
 
     print(f"loading dataset... {dataset_name}")
