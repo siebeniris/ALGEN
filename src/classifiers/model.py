@@ -64,13 +64,25 @@ class Classifier(nn.Module):
             x = self.classifier(x)
             return x
         else:
+            x = self.dropout(x)
+
             if self.input_dim > 768:
                 # print("Using the model specific for GPT embeddings")
-                x = self.dropout(x)
-                x = self.fc1(x)
-                x = self.relu(x)
-                x = self.fc2(x)
+                x = self.project_1(x)
+                x = self.project_2(x)
+                x = self.activation(x)
+                x = self.project_3(x)
+                x = self.project_4(x)
+                # x = self.dropout(x)
+                # x = self.fc1(x)
+                # x = self.relu(x)
+                # x = self.fc2(x)
                 return x
             else:
-                x = self.dropout(x)
-                return self.fc(x)
+                x = self.project_1(x)
+                x = self.activation(x)
+                x = self.project_2(x)
+
+            x = self.activation(x)
+            x = self.classifier(x)
+            return x
