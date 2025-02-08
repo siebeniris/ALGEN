@@ -198,7 +198,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             print(
                 f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
 
-            print(f"saving embeddings and labels to {data_dir}")
+            print(f"saving embeddings and labels to {embedding_dir}")
             save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
             save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
             save_embeddings(test_embeddings, test_labels, embedding_dir, "test")
@@ -288,7 +288,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
 
             # create dataloader for embeddings for training.
-            print(f"device {device}, embedding dim {embedding_dim} type {type(embedding_dim)}  num labels {num_labels}")
+            print(f"Train classifier: device {device}, embedding dim {embedding_dim} type {type(embedding_dim)} "
+                  f"num labels {num_labels}, defense method {defense_method} epsilon {epsilon}")
 
             classifier = Classifier(embedding_dim, num_labels, defense_method, epsilon).to(device)
 
@@ -330,6 +331,8 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
                     with open(os.path.join(output_dir, f"epoch_{epoch}_results.json"), "w") as f:
                         json.dump(test_results, f)
+
+            print("*"*40)
     else:
         print(f"Already finished. ")
 

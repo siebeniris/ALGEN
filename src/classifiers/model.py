@@ -11,24 +11,23 @@ class Classifier(nn.Module):
         self.epsilon = epsilon
         self.proj_dim = 16  # paper.
 
-        # purmech, lapmech
+        # purmech, lapmech3
         # https://github.com/xiangyue9607/Sentence-LDP/blob/main/model.py
         if self.defense_method in ["PurMech", "LapMech"]:
             self.project_1 = nn.Linear(input_dim, self.proj_dim)
             self.project_2 = nn.Linear(self.proj_dim, input_dim)
             self.activation = nn.Tanh()
             self.classifier = nn.Linear(input_dim, num_labels)
-
-        # for gpt models.
-        if self.input_dim > 768:
-            self.fc1 = nn.Linear(input_dim, 1024)  # Increased hidden units for larger embeddings
-            self.fc2 = nn.Linear(1024, num_labels)
-            self.relu = nn.ReLU()
-            self.dropout = nn.Dropout(p=dropout_rate)
-            # Layer for smaller input (e.g., BERT embeddings)
         else:
-            self.dropout = nn.Dropout(p=dropout_rate)
-            self.fc = nn.Linear(input_dim, num_labels)
+            if self.input_dim > 768:
+                self.fc1 = nn.Linear(input_dim, 1024)  # Increased hidden units for larger embeddings
+                self.fc2 = nn.Linear(1024, num_labels)
+                self.relu = nn.ReLU()
+                self.dropout = nn.Dropout(p=dropout_rate)
+                # Layer for smaller input (e.g., BERT embeddings)
+            else:
+                self.dropout = nn.Dropout(p=dropout_rate)
+                self.fc = nn.Linear(input_dim, num_labels)
 
     def forward(self, x):
         if self.defense_method in ["PurMech", "LapMech"]:
