@@ -15,6 +15,7 @@ class Classifier(nn.Module):
         # https://github.com/xiangyue9607/Sentence-LDP/blob/main/model.py
         # if self.defense_method in ["PurMech", "LapMech"]:
         self.dropout = nn.Dropout(p=dropout_rate)
+        self.activation = nn.Tanh()
         if self.input_dim > 768:
             self.project_1 = nn.Linear(input_dim, 1024)
             self.project_2 = nn.Linear(1024, self.proj_dim)
@@ -23,7 +24,7 @@ class Classifier(nn.Module):
         else:
             self.project_1 = nn.Linear(input_dim, self.proj_dim)
             self.project_2 = nn.Linear(self.proj_dim, input_dim)
-        self.activation = nn.Tanh()
+
         self.classifier = nn.Linear(input_dim, num_labels)
         # else:
         #     self.dropout = nn.Dropout(p=dropout_rate)
