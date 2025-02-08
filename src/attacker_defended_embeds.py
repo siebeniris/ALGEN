@@ -317,41 +317,46 @@ def defense_output(checkpoint_path: str,
 
     defense_outputdir = os.path.join(outputdir, defense_method)
     os.makedirs(defense_outputdir, exist_ok=True)
-
-    # if not os.path.exists(output_dir):
     output_dir = os.path.join(defense_outputdir,
                               f"defense_{test_dataset_}_{source_model_name_}_train{train_samples}_noise_{gaussian_noise_level}_epsilon{dp_epsilon}_delta{dp_delta}")
     os.makedirs(output_dir, exist_ok=True)
-    print(f"defending embeddings from {source_model_name} with {train_samples} train samples with {defense_method}")
 
-    decoderInference = DecoderInferenceDefense(checkpoint_path, source_model_name, defense_method,
-                                               gaussian_noise_level, dp_epsilon, dp_delta,
-                                               train_samples, test_samples, test_data, output_dir)
+    output_file_path = os.path.join(output_dir, "results.json")
 
-    test_results, preds, references = decoderInference.test()
-    # TODO: add translation here.
-    # translate the decoded into fine-tuned language.
-    # extract language from checkpoints and dataset name
-    # use easy nmt
+    if not os.path.exists(output_file_path):
 
-    df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
+        print(f"defending embeddings from {source_model_name} with {train_samples} train samples with {defense_method}")
 
-    results_dict = {
-        "train_samples": train_samples,
-        "test_samples": test_samples,
-        "source_model": source_model_name,
-        "source_dim": decoderInference.source_hidden_dim,
-        "target_dim": decoderInference.target_hidden_dim,
-        "test_results": test_results,
-        "loss": decoderInference.align_metrics
-    }
-    print(results_dict)
+        decoderInference = DecoderInferenceDefense(checkpoint_path, source_model_name, defense_method,
+                                                   gaussian_noise_level, dp_epsilon, dp_delta,
+                                                   train_samples, test_samples, test_data, output_dir)
 
-    print(f"writing the results to {output_dir}")
-    df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
-    with open(os.path.join(output_dir, "results.json"), "w") as f:
-        json.dump(results_dict, f)
-    print("*" * 40)
+        test_results, preds, references = decoderInference.test()
+        # TODO: add translation here.
+        # translate the decoded into fine-tuned language.
+        # extract language from checkpoints and dataset name
+        # use easy nmt
+
+        df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
+
+        results_dict = {
+            "train_samples": train_samples,
+            "test_samples": test_samples,
+            "source_model": source_model_name,
+            "source_dim": decoderInference.source_hidden_dim,
+            "target_dim": decoderInference.target_hidden_dim,
+            "test_results": test_results,
+            "loss": decoderInference.align_metrics
+        }
+        print(results_dict)
+
+        print(f"writing the results to {output_dir}")
+        df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
+        with open(os.path.join(output_dir, "results.json"), "w") as f:
+            json.dump(results_dict, f)
+        print("*" * 40)
+    else:
+        print(f"{output_file_path} exists.")
 
 
 def main(
