@@ -1,6 +1,9 @@
 from src.classifiers.trainer import fine_tune
 
-source_models = ["text-embedding-ada-002"]
+source_models = ["google-t5/t5-base", "google/mt5-base",
+                 "sentence-transformers/gtr-t5-base",
+                 "google-bert/bert-base-multilingual-cased",
+                 "text-embedding-ada-002"]
 
 # datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
 # datasets_names = [ "yiyic/snli_ds"]
@@ -26,4 +29,5 @@ def gaussian_trainer(dataset_name):
 
 if __name__ == '__main__':
     import plac
+
     plac.call(gaussian_trainer)

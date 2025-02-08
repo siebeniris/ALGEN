@@ -1,11 +1,23 @@
 import torch.nn as nn
+from src.defenses.ldp import PurMech, LapMech
 
 
 class Classifier(nn.Module):
-    def __init__(self, input_dim, num_labels, dropout_rate=0.2):
+    def __init__(self, input_dim, num_labels, defense_method, epsilon, dropout_rate=0.2):
         super(Classifier, self).__init__()
         # dropout?
         self.input_dim = input_dim
+        self.defense_method = defense_method
+        self.epsilon = epsilon
+        self.proj_dim = 16  # paper.
+
+        # purmech, lapmech
+        # https://github.com/xiangyue9607/Sentence-LDP/blob/main/model.py
+        if self.defense_method in ["PurMech", "LapMech"]:
+            self.project_1 = nn.Linear(input_dim, self.proj_dim)
+            self.project_2 = nn.Linear(self.proj_dim, input_dim)
+            self.activation = nn.Tanh()
+            self.classifier = nn.Linear(input_dim, num_labels)
 
         # for gpt models.
         if self.input_dim > 768:
@@ -13,22 +25,31 @@ class Classifier(nn.Module):
             self.fc2 = nn.Linear(1024, num_labels)
             self.relu = nn.ReLU()
             self.dropout = nn.Dropout(p=dropout_rate)
-
             # Layer for smaller input (e.g., BERT embeddings)
         else:
             self.dropout = nn.Dropout(p=dropout_rate)
             self.fc = nn.Linear(input_dim, num_labels)
 
-
     def forward(self, x):
-        if self.input_dim > 768:
-            # print("Using the model specific for GPT embeddings")
+        if self.defense_method in ["PurMech", "LapMech"]:
             x = self.dropout(x)
-            x = self.fc1(x)
-            x = self.relu(x)
-            x = self.fc2(x)
+            x = self.project_1(x)
+            x = self.activation(x)
+            if self.defense_method == "PurMech":
+                x = PurMech(x, self.epsilon)
+            elif self.defense_method == "LapMech":
+                x = LapMech(x, self.epsilon)
+            x = self.project_2(x)
+            x = self.activation(x)
             return x
         else:
-            x = self.dropout(x)
-            return self.fc(x)
-
+            if self.input_dim > 768:
+                # print("Using the model specific for GPT embeddings")
+                x = self.dropout(x)
+                x = self.fc1(x)
+                x = self.relu(x)
+                x = self.fc2(x)
+                return x
+            else:
+                x = self.dropout(x)
+                return self.fc(x)

@@ -19,6 +19,7 @@ from src.classifiers.eval_utils import eval_classification
 from src.defenses.WET import defense_WET
 from src.defenses.gaussian_noise import insert_gaussian_noise, dp_guassian_embeddings
 from src.defenses.shuffling import shuffle_only_embeddings
+from src.defenses.ldp import LapMech, PurMech
 
 
 def set_seed(seed):
@@ -224,6 +225,24 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
                     print(f"saving Trans[WET] to {WET_save_path}")
                     np.savez_compressed(WET_save_path, T=T_trans)
 
+                elif defense_method == "PurMech":
+                    print(f"applying {defense_method} with epsilon {epsilon}")
+                    train_embeddings = train_embeddings
+                    dev_embeddings = dev_embeddings
+                    test_embeddings = test_embeddings
+                    # train_embeddings = PurMech(train_embeddings, epsilon)
+                    # dev_embeddings = PurMech(dev_embeddings, epsilon)
+                    # test_embeddings = PurMech(test_embeddings, epsilon)
+
+                elif defense_method == "LapMech":
+                    print(f"applying {defense_method} with epsilon {epsilon}")
+                    train_embeddings = train_embeddings
+                    dev_embeddings = dev_embeddings
+                    test_embeddings = test_embeddings
+                    # train_embeddings = LapMech(train_embeddings, epsilon)
+                    # dev_embeddings = LapMech(dev_embeddings, epsilon)
+                    # test_embeddings = LapMech(test_embeddings, epsilon)
+
                 print(f"saving embeddings to {embedding_dir} ...")
                 save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
                 save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
@@ -252,7 +271,7 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
             # create dataloader for embeddings for training.
             print(f"device {device}, embedding dim {embedding_dim} type {type(embedding_dim)}  num labels {num_labels}")
 
-            classifier = Classifier(embedding_dim, num_labels).to(device)
+            classifier = Classifier(embedding_dim, num_labels, defense_method, epsilon).to(device)
 
             optimizer = torch.optim.AdamW(classifier.parameters(), lr=learning_rate)
 
