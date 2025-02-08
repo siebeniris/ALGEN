@@ -15,9 +15,16 @@ class Classifier(nn.Module):
         # https://github.com/xiangyue9607/Sentence-LDP/blob/main/model.py
         if self.defense_method in ["PurMech", "LapMech"]:
             self.dropout = nn.Dropout(p=dropout_rate)
-            self.project_1 = nn.Linear(input_dim, self.proj_dim)
-            self.project_2 = nn.Linear(self.proj_dim, input_dim)
-            self.activation = nn.Tanh()
+            if self.input_dim > 768:
+                self.project_1 = nn.Linear(input_dim, 1024)
+                self.project_2 = nn.Linear(1024, self.proj_dim)
+                self.project_3 = nn.Linear(self.proj_dim, 1024)
+                self.project_4 = nn.Linear(1024, input_dim)
+            else:
+
+                self.project_1 = nn.Linear(input_dim, self.proj_dim)
+                self.project_2 = nn.Linear(self.proj_dim, input_dim)
+                self.activation = nn.Tanh()
             self.classifier = nn.Linear(input_dim, num_labels)
         else:
             if self.input_dim > 768:
@@ -33,14 +40,28 @@ class Classifier(nn.Module):
     def forward(self, x):
         if self.defense_method in ["PurMech", "LapMech"]:
             x = self.dropout(x)
-            x = self.project_1(x)
+
+            if self.input_dim > 768:
+                x = self.project_1(x)
+                x = self.project_2(x)
+                x = self.activation(x)
+                if self.defense_method == "PurMech":
+                    x = PurMech(x, self.epsilon)
+                elif self.defense_method == "LapMech":
+                    x = LapMech(x, self.epsilon)
+                x = self.project_3(x)
+                x = self.project_4(x)
+            else:
+                x = self.project_1(x)
+                x = self.activation(x)
+                if self.defense_method == "PurMech":
+                    x = PurMech(x, self.epsilon)
+                elif self.defense_method == "LapMech":
+                    x = LapMech(x, self.epsilon)
+                x = self.project_2(x)
+
             x = self.activation(x)
-            if self.defense_method == "PurMech":
-                x = PurMech(x, self.epsilon)
-            elif self.defense_method == "LapMech":
-                x = LapMech(x, self.epsilon)
-            x = self.project_2(x)
-            x = self.activation(x)
+            x = self.classifier(x)
             return x
         else:
             if self.input_dim > 768:
