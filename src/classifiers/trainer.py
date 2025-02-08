@@ -145,7 +145,6 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
         print(f"output dir {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
 
-
     os.makedirs(embedding_dir, exist_ok=True)
 
     print(f"loading dataset... {dataset_name}")
@@ -167,174 +166,174 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
 
     num_labels = int(num_labels)
 
-    if not found:
-        print("no results found, training the classifier.")
-        if not os.path.exists(embedding_path_nodefense):
-            # then we need to extract embeddings.
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            encoder = AutoModel.from_pretrained(model_name)
-            encoder = encoder.to(device)
+    # if not found:
+    print("no results found, training the classifier.")
+    if not os.path.exists(embedding_path_nodefense):
+        # then we need to extract embeddings.
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        encoder = AutoModel.from_pretrained(model_name)
+        encoder = encoder.to(device)
 
-            tokenized_dataset = preprocess_data(dataset, tokenizer, task_name)
+        tokenized_dataset = preprocess_data(dataset, tokenizer, task_name)
 
-            # prepare pytorch datasets.
-            train_dataset = tokenized_dataset["train"]
-            dev_dataset = tokenized_dataset["dev"]
-            test_dataset = tokenized_dataset["test"]
+        # prepare pytorch datasets.
+        train_dataset = tokenized_dataset["train"]
+        dev_dataset = tokenized_dataset["dev"]
+        test_dataset = tokenized_dataset["test"]
 
-            # dataloader
-            print(f"creating dataloaders")
-            train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                                          collate_fn=default_data_collator)
-            dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
-            test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
+        # dataloader
+        print(f"creating dataloaders")
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+                                      collate_fn=default_data_collator)
+        dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
+        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
 
-            # embeddings and labels.
-            print(f"NoDefense embeddings ==== > creating embeddings and labels.")
-            train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
-            dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
-            test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
+        # embeddings and labels.
+        print(f"NoDefense embeddings ==== > creating embeddings and labels.")
+        train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
+        dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
+        test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
 
-            print(
-                f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
+        print(
+            f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
 
-            print(f"saving embeddings and labels to {embedding_dir}")
+        print(f"saving embeddings and labels to {embedding_dir}")
+        save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
+        save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
+        save_embeddings(test_embeddings, test_labels, embedding_dir, "test")
+
+    else:
+        print("NoDefense embeddings exists.")
+        if not os.path.exists(embedding_path):
+            print(f"Loading embeddings from NoDefense path {embedding_dir_nodefense}")
+            train_embeddings, train_labels = load_embeddings(embedding_dir_nodefense, "train")
+            dev_embeddings, dev_labels = load_embeddings(embedding_dir_nodefense, "dev")
+            test_embeddings, test_labels = load_embeddings(embedding_dir_nodefense, "test")
+
+            if defense_method == "Shuffling":
+                print(f"applying {defense_method}")
+                train_embeddings, dev_embeddings, test_embeddings = shuffle_only_embeddings(train_embeddings,
+                                                                                            dev_embeddings,
+                                                                                            test_embeddings)
+
+            elif defense_method == "Gaussian":
+                print(f"applying {defense_method} with noise level {noise_level}")
+                assert noise_level > 0.0
+
+                train_embeddings = insert_gaussian_noise(train_embeddings, noise_level=noise_level)
+                dev_embeddings = insert_gaussian_noise(dev_embeddings, noise_level=noise_level)
+                test_embeddings = insert_gaussian_noise(test_embeddings, noise_level=noise_level)
+
+            elif defense_method == "dp_Gaussian":
+                print(f"applying {defense_method} with delta {delta} and epsilon {epsilon}")
+                assert delta > 0.0
+                assert epsilon > 0.0
+
+                train_embeddings = dp_guassian_embeddings(train_embeddings, epsilon=epsilon, delta=delta)
+                dev_embeddings = dp_guassian_embeddings(dev_embeddings, epsilon=epsilon, delta=delta)
+                test_embeddings = dp_guassian_embeddings(test_embeddings, epsilon=epsilon, delta=delta)
+
+            elif defense_method == "WET":
+                print(f"applying {defense_method}")
+                train_embeddings, dev_embeddings, test_embeddings, T_trans = defense_WET(train_embeddings,
+                                                                                         dev_embeddings,
+                                                                                         test_embeddings)
+
+                WET_save_path = os.path.join(output_dir, f"Trans_WET.npz")
+                print(f"saving Trans[WET] to {WET_save_path}")
+                np.savez_compressed(WET_save_path, T=T_trans)
+
+            elif defense_method == "PurMech":
+                print(f"applying {defense_method} with epsilon {epsilon}")
+                train_embeddings = train_embeddings
+                dev_embeddings = dev_embeddings
+                test_embeddings = test_embeddings
+                # train_embeddings = PurMech(train_embeddings, epsilon)
+                # dev_embeddings = PurMech(dev_embeddings, epsilon)
+                # test_embeddings = PurMech(test_embeddings, epsilon)
+
+            elif defense_method == "LapMech":
+                print(f"applying {defense_method} with epsilon {epsilon}")
+                train_embeddings = train_embeddings
+                dev_embeddings = dev_embeddings
+                test_embeddings = test_embeddings
+                # train_embeddings = LapMech(train_embeddings, epsilon)
+                # dev_embeddings = LapMech(dev_embeddings, epsilon)
+                # test_embeddings = LapMech(test_embeddings, epsilon)
+
+            print(f"saving embeddings to {embedding_dir} ...")
             save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
             save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
             save_embeddings(test_embeddings, test_labels, embedding_dir, "test")
 
+
         else:
-            print("NoDefense embeddings exists.")
-            if not os.path.exists(embedding_path):
-                print(f"Loading embeddings from NoDefense path {embedding_dir_nodefense}")
-                train_embeddings, train_labels = load_embeddings(embedding_dir_nodefense, "train")
-                dev_embeddings, dev_labels = load_embeddings(embedding_dir_nodefense, "dev")
-                test_embeddings, test_labels = load_embeddings(embedding_dir_nodefense, "test")
+            print(f"Loading embeddings from {embedding_dir}")
+            train_embeddings, train_labels = load_embeddings(embedding_dir, "train")
+            dev_embeddings, dev_labels = load_embeddings(embedding_dir, "dev")
+            test_embeddings, test_labels = load_embeddings(embedding_dir, "test")
 
-                if defense_method == "Shuffling":
-                    print(f"applying {defense_method}")
-                    train_embeddings, dev_embeddings, test_embeddings = shuffle_only_embeddings(train_embeddings,
-                                                                                                dev_embeddings,
-                                                                                                test_embeddings)
+        # create pytorch dataset for embeddings
+        print(f"creating embeddings dataset.")
+        train_embedding_dataset = EmbeddingDataset(train_embeddings, train_labels)
+        dev_embedding_dataset = EmbeddingDataset(dev_embeddings, dev_labels)
+        test_embedding_dataset = EmbeddingDataset(test_embeddings, test_labels)
 
-                elif defense_method == "Gaussian":
-                    print(f"applying {defense_method} with noise level {noise_level}")
-                    assert noise_level > 0.0
+        # data loaders.
+        print(f"creating embeddings dataloaders.")
+        train_embedding_dataloader = DataLoader(train_embedding_dataset, batch_size=batch_size,
+                                                shuffle=True, drop_last=True)
+        dev_embedding_dataloader = DataLoader(dev_embedding_dataset, batch_size=batch_size)
+        test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
 
-                    train_embeddings = insert_gaussian_noise(train_embeddings, noise_level=noise_level)
-                    dev_embeddings = insert_gaussian_noise(dev_embeddings, noise_level=noise_level)
-                    test_embeddings = insert_gaussian_noise(test_embeddings, noise_level=noise_level)
+        # create dataloader for embeddings for training.
+        print(f"Train classifier: device {device}, embedding dim {embedding_dim} type {type(embedding_dim)} "
+              f"num labels {num_labels}, defense method {defense_method} epsilon {epsilon}")
 
-                elif defense_method == "dp_Gaussian":
-                    print(f"applying {defense_method} with delta {delta} and epsilon {epsilon}")
-                    assert delta > 0.0
-                    assert epsilon > 0.0
+        classifier = Classifier(embedding_dim, num_labels, defense_method, epsilon).to(device)
 
-                    train_embeddings = dp_guassian_embeddings(train_embeddings, epsilon=epsilon, delta=delta)
-                    dev_embeddings = dp_guassian_embeddings(dev_embeddings, epsilon=epsilon, delta=delta)
-                    test_embeddings = dp_guassian_embeddings(test_embeddings, epsilon=epsilon, delta=delta)
+        optimizer = torch.optim.AdamW(classifier.parameters(), lr=learning_rate)
 
-                elif defense_method == "WET":
-                    print(f"applying {defense_method}")
-                    train_embeddings, dev_embeddings, test_embeddings, T_trans = defense_WET(train_embeddings,
-                                                                                             dev_embeddings,
-                                                                                             test_embeddings)
-
-                    WET_save_path = os.path.join(output_dir, f"Trans_WET.npz")
-                    print(f"saving Trans[WET] to {WET_save_path}")
-                    np.savez_compressed(WET_save_path, T=T_trans)
-
-                elif defense_method == "PurMech":
-                    print(f"applying {defense_method} with epsilon {epsilon}")
-                    train_embeddings = train_embeddings
-                    dev_embeddings = dev_embeddings
-                    test_embeddings = test_embeddings
-                    # train_embeddings = PurMech(train_embeddings, epsilon)
-                    # dev_embeddings = PurMech(dev_embeddings, epsilon)
-                    # test_embeddings = PurMech(test_embeddings, epsilon)
-
-                elif defense_method == "LapMech":
-                    print(f"applying {defense_method} with epsilon {epsilon}")
-                    train_embeddings = train_embeddings
-                    dev_embeddings = dev_embeddings
-                    test_embeddings = test_embeddings
-                    # train_embeddings = LapMech(train_embeddings, epsilon)
-                    # dev_embeddings = LapMech(dev_embeddings, epsilon)
-                    # test_embeddings = LapMech(test_embeddings, epsilon)
-
-                print(f"saving embeddings to {embedding_dir} ...")
-                save_embeddings(train_embeddings, train_labels, embedding_dir, "train")
-                save_embeddings(dev_embeddings, dev_labels, embedding_dir, "dev")
-                save_embeddings(test_embeddings, test_labels, embedding_dir, "test")
-
-
+        for epoch in tqdm(range(epochs)):
+            train_loss = train(classifier, train_embedding_dataloader, optimizer, device)
+            # dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
+            if task_name == "nli":
+                dev_acc, dev_f1, dev_auc = evaluation_step(classifier, num_labels, dev_embedding_dataloader,
+                                                           "multiclass",
+                                                           device)
             else:
-                print(f"Loading embeddings from {embedding_dir}")
-                train_embeddings, train_labels = load_embeddings(embedding_dir, "train")
-                dev_embeddings, dev_labels = load_embeddings(embedding_dir, "dev")
-                test_embeddings, test_labels = load_embeddings(embedding_dir, "test")
+                dev_acc, dev_f1, dev_auc = evaluation_step(classifier, num_labels, dev_embedding_dataloader,
+                                                           "binary", device)
+            print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
+            print(f"Dev result: acc: {dev_acc}")
 
-            # create pytorch dataset for embeddings
-            print(f"creating embeddings dataset.")
-            train_embedding_dataset = EmbeddingDataset(train_embeddings, train_labels)
-            dev_embedding_dataset = EmbeddingDataset(dev_embeddings, dev_labels)
-            test_embedding_dataset = EmbeddingDataset(test_embeddings, test_labels)
+            if dev_acc > best_acc:
+                best_acc = dev_acc
 
-            # data loaders.
-            print(f"creating embeddings dataloaders.")
-            train_embedding_dataloader = DataLoader(train_embedding_dataset, batch_size=batch_size,
-                                                    shuffle=True, drop_last=True)
-            dev_embedding_dataloader = DataLoader(dev_embedding_dataset, batch_size=batch_size)
-            test_embedding_dataloader = DataLoader(test_embedding_dataset, batch_size=batch_size)
-
-            # create dataloader for embeddings for training.
-            print(f"Train classifier: device {device}, embedding dim {embedding_dim} type {type(embedding_dim)} "
-                  f"num labels {num_labels}, defense method {defense_method} epsilon {epsilon}")
-
-            classifier = Classifier(embedding_dim, num_labels, defense_method, epsilon).to(device)
-
-            optimizer = torch.optim.AdamW(classifier.parameters(), lr=learning_rate)
-
-            for epoch in tqdm(range(epochs)):
-                train_loss = train(classifier, train_embedding_dataloader, optimizer, device)
-                # dev_acc, dev_f1, dev_auc = evaluation_step(classifier, dev_embedding_dataloader, device)
+                print("testing ...")
                 if task_name == "nli":
-                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, num_labels, dev_embedding_dataloader,
-                                                               "multiclass",
-                                                               device)
+                    test_acc, test_f1, test_auc = evaluation_step(classifier, num_labels, test_embedding_dataloader,
+                                                                  "multiclass", device)
                 else:
-                    dev_acc, dev_f1, dev_auc = evaluation_step(classifier, num_labels, dev_embedding_dataloader,
-                                                               "binary", device)
-                print(f"Epoch {epoch + 1}/{epochs} - Train Loss: {train_loss:.4f}")
-                print(f"Dev result: acc: {dev_acc}")
+                    test_acc, test_f1, test_auc = evaluation_step(classifier, num_labels, test_embedding_dataloader,
+                                                                  "binary", device)
 
-                if dev_acc > best_acc:
-                    best_acc = dev_acc
+                test_results = {
+                    "epoch": epoch,
+                    "dev_acc": best_acc,
+                    "test_acc": test_acc,
+                    "test_f1": test_f1,
+                    "test_roc": test_auc
+                }
+                print(test_results)
+                print(f"writing test results to {output_dir}")
 
-                    print("testing ...")
-                    if task_name == "nli":
-                        test_acc, test_f1, test_auc = evaluation_step(classifier, num_labels, test_embedding_dataloader,
-                                                                      "multiclass", device)
-                    else:
-                        test_acc, test_f1, test_auc = evaluation_step(classifier, num_labels, test_embedding_dataloader,
-                                                                      "binary", device)
+                with open(os.path.join(output_dir, f"epoch_{epoch}_results.json"), "w") as f:
+                    json.dump(test_results, f)
 
-                    test_results = {
-                        "epoch": epoch,
-                        "dev_acc": best_acc,
-                        "test_acc": test_acc,
-                        "test_f1": test_f1,
-                        "test_roc": test_auc
-                    }
-                    print(test_results)
-                    print(f"writing test results to {output_dir}")
-
-                    with open(os.path.join(output_dir, f"epoch_{epoch}_results.json"), "w") as f:
-                        json.dump(test_results, f)
-
-            print("*"*40)
-    else:
-        print(f"Already finished. ")
+        print("*" * 40)
+    # else:
+    #     print(f"Already finished. ")
 
 
 if __name__ == '__main__':
