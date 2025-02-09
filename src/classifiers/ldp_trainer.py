@@ -12,12 +12,17 @@ tasks = ["sentiment", "nli"]
 defenses = ["PurMech", "LapMech"]
 epsilon_l = [1, 4, 8, 12]
 
+model_dataset = [("google-bert/bert-base-multilingual-cased", "yiyic/s140_ds"),
+                 ("google-t5/t5-base", "yiyic/snli_ds"),
+                 ("google/mt5-base", "yiyic/s140_ds"),
+                 ("sentence-transformers/gtr-t5-base", "yiyic/s140_ds"),
+                 ]
 
-def ldp_trainer(dataset_name):
-    for model_name in source_models:
-        for defense in defenses:
-            for epsilon in epsilon_l:
-
+def ldp_trainer(model_name, dataset_name):
+    assert model_name in source_models
+    assert dataset_name in datasets_names
+    for defense in defenses:
+        for epsilon in epsilon_l:
                 if dataset_name == "yiyic/snli_ds":
                     task = "nli"
                     num_labels = 3

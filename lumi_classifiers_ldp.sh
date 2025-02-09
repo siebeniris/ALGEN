@@ -16,7 +16,8 @@ set -x
 wd=$(pwd)
 echo "working directory ${wd}"
 
-DATASET=$1
+Model=$1
+Dataset=$2
 
 export OPENAI_API_KEY="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"
 export HF_HOME="/scratch/project_465001270/.cache"
@@ -50,4 +51,4 @@ srun singularity exec \
     -B ${wd}:${wd} \
     -B ${HF_HOME}:${HF_HOME} \
     -B ${HF_DATASETS_CACHE}:${HF_DATASETS_CACHE} \
-    ${SIF} python -m src.classifiers.ldp_trainer ${DATASET}
+    ${SIF} python -m src.classifiers.ldp_trainer ${Model} ${Dataset}
