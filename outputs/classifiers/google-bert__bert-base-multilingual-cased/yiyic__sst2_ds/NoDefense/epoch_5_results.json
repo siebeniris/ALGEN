@@ -1,1 +1,1 @@
-{"epoch": 5, "dev_acc": 74.0, "test_acc": 76.5, "test_f1": 72.83, "test_roc": 83.1}
+{"epoch": 5, "dev_acc": 74.5, "test_acc": 76.5, "test_f1": 76.06, "test_roc": 83.28999999999999}
