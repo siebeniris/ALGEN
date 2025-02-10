@@ -61,6 +61,27 @@ def extract_embeddings(model, dataloader, device: torch.device):
     return embeddings, labels
 
 
+
+def extract_random_embeddings(dataloader, device:torch.device, embeddings_dim=768):
+    embeddings, labels = [], []
+    with torch.no_grad():
+        for batch in tqdm(dataloader):
+            # print(batch)
+            batch_size = batch["input_ids"].shape[0]
+            random_embeddings = torch.randn(batch_size, embeddings_dim, device=device)
+
+            normed_embeddings = torch.nn.functional.normalize(random_embeddings, p=2, dim=1)
+
+            embeddings.append(normed_embeddings.cpu())
+            labels.append(batch["labels"].cpu())
+    # new dimension. [samples, token_length, hidden_dim]
+    embeddings = torch.cat(embeddings, dim=0)
+    labels = torch.cat(labels, dim=0)
+
+    return embeddings, labels
+
+
+
 def save_embeddings(embeddings, labels, save_dir, data_split):
     os.makedirs(save_dir, exist_ok=True)
     torch.save(embeddings, os.path.join(save_dir, f"{data_split}_embeddings.pt"))

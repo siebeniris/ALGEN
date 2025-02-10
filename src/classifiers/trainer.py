@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from src.classifiers.model import Classifier
 from src.classifiers.data_helper import EmbeddingDataset, preprocess_data, extract_embeddings, save_embeddings, \
-    load_embeddings
+    load_embeddings, extract_random_embeddings
 from src.classifiers.eval_utils import eval_classification
 from src.defenses.WET import defense_WET
 from src.defenses.gaussian_noise import insert_gaussian_noise, dp_guassian_embeddings
@@ -154,7 +154,9 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
     assert model_name in ["google-t5/t5-base", "google/mt5-base",
                           "sentence-transformers/gtr-t5-base",
                           "google-bert/bert-base-multilingual-cased",
-                          "text-embedding-ada-002"]
+                          "text-embedding-ada-002",
+                          "random"
+                          ]
 
     found, files = check_pattern_in_directory(output_dir)
     print(f"found results...{files}")
@@ -170,29 +172,47 @@ def fine_tune(dataset_name, task_name, num_labels, model_name,
     print("no results found, training the classifier.")
     if not os.path.exists(embedding_path_nodefense):
         # then we need to extract embeddings.
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        encoder = AutoModel.from_pretrained(model_name)
-        encoder = encoder.to(device)
+        if model_name == "random":
+            train_dataset = dataset["train"]
+            dev_dataset = dataset["dev"]
+            test_dataset = dataset["test"]
+            # dataloader
+            print(f"creating dataloaders")
+            train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+                                          collate_fn=default_data_collator)
+            dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
+            test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
 
-        tokenized_dataset = preprocess_data(dataset, tokenizer, task_name)
+            # embeddings and labels.
+            print(f"NoDefense embeddings ==== > creating embeddings and labels.")
+            train_embeddings, train_labels = extract_random_embeddings( train_dataloader, device=device)
+            dev_embeddings, dev_labels = extract_random_embeddings(dev_dataloader, device=device)
+            test_embeddings, test_labels = extract_random_embeddings(test_dataloader, device=device)
 
-        # prepare pytorch datasets.
-        train_dataset = tokenized_dataset["train"]
-        dev_dataset = tokenized_dataset["dev"]
-        test_dataset = tokenized_dataset["test"]
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            encoder = AutoModel.from_pretrained(model_name)
+            encoder = encoder.to(device)
 
-        # dataloader
-        print(f"creating dataloaders")
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                                      collate_fn=default_data_collator)
-        dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
+            tokenized_dataset = preprocess_data(dataset, tokenizer, task_name)
 
-        # embeddings and labels.
-        print(f"NoDefense embeddings ==== > creating embeddings and labels.")
-        train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
-        dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
-        test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
+            # prepare pytorch datasets.
+            train_dataset = tokenized_dataset["train"]
+            dev_dataset = tokenized_dataset["dev"]
+            test_dataset = tokenized_dataset["test"]
+
+            # dataloader
+            print(f"creating dataloaders")
+            train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+                                          collate_fn=default_data_collator)
+            dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=default_data_collator)
+            test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=default_data_collator)
+
+            # embeddings and labels.
+            print(f"NoDefense embeddings ==== > creating embeddings and labels.")
+            train_embeddings, train_labels = extract_embeddings(encoder, train_dataloader, device=device)
+            dev_embeddings, dev_labels = extract_embeddings(encoder, dev_dataloader, device=device)
+            test_embeddings, test_labels = extract_embeddings(encoder, test_dataloader, device=device)
 
         print(
             f"embeddings shape: train {train_embeddings.shape}, dev {dev_embeddings.shape}, test {test_embeddings.shape}")
