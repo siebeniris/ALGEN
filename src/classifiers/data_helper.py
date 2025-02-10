@@ -67,7 +67,7 @@ def extract_random_embeddings(dataloader, device:torch.device, embeddings_dim=76
     with torch.no_grad():
         for batch in tqdm(dataloader):
             # print(batch)
-            batch_size = batch["input_ids"].shape[0]
+            batch_size = batch["text"].shape[0]
             random_embeddings = torch.randn(batch_size, embeddings_dim, device=device)
 
             normed_embeddings = torch.nn.functional.normalize(random_embeddings, p=2, dim=1)
