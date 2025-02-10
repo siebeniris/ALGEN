@@ -393,33 +393,33 @@ def main(
     for source_model_name in source_model_names:
         # dataset.
         for test_data in tqdm(datasets_names):
-            # for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
+            for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
             # get different datasets.
-            train_samples = 1000
+            #     train_samples = 1000
 
-            guassian_noise_levels = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
+                guassian_noise_levels = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
 
-            epsilon_list_dp = [1, 4, 8, 12]
+                epsilon_list_dp = [1, 4, 8, 12]
 
-            defense_output(checkpoint_path, outputdir, "NoDefense", 0, 0, 0, test_data, source_model_name,
-                           train_samples, test_samples)
-
-            for epsilon in epsilon_list_dp:
-                defense_output(checkpoint_path, outputdir, "PurMech", 0, epsilon, 0,
-                               test_data, source_model_name,
+                defense_output(checkpoint_path, outputdir, "NoDefense", 0, 0, 0, test_data, source_model_name,
                                train_samples, test_samples)
 
-                defense_output(checkpoint_path, outputdir, "LapMech", 0, epsilon, 0,
-                               test_data, source_model_name,
-                               train_samples, test_samples)
+                for epsilon in epsilon_list_dp:
+                    defense_output(checkpoint_path, outputdir, "PurMech", 0, epsilon, 0,
+                                   test_data, source_model_name,
+                                   train_samples, test_samples)
 
-            for defense_method in ["WET"]:  # Shuffling
-                defense_output(checkpoint_path, outputdir, defense_method, 0, 0, 0,
-                               test_data, source_model_name, train_samples, test_samples)
+                    defense_output(checkpoint_path, outputdir, "LapMech", 0, epsilon, 0,
+                                   test_data, source_model_name,
+                                   train_samples, test_samples)
 
-            for noise_level in guassian_noise_levels:
-                defense_output(checkpoint_path, outputdir, "Gaussian", noise_level, 0, 0, test_data, source_model_name,
-                               train_samples, test_samples)
+                for defense_method in ["WET"]:  # Shuffling
+                    defense_output(checkpoint_path, outputdir, defense_method, 0, 0, 0,
+                                   test_data, source_model_name, train_samples, test_samples)
+
+                for noise_level in guassian_noise_levels:
+                    defense_output(checkpoint_path, outputdir, "Gaussian", noise_level, 0, 0, test_data, source_model_name,
+                                   train_samples, test_samples)
 
 
 if __name__ == '__main__':
