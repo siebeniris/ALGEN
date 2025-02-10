@@ -74,7 +74,7 @@ class DecoderInference:
 
         self.target_encoder = self.trainer.encoder
         self.target_tokenizer = self.trainer.tokenizer
-        if self.source_model_name in ["text-embedding-3-large", "text-embedding-ada-002"]:
+        if self.source_model_name in ["text-embedding-3-large", "text-embedding-ada-002", "random"]:
             print("Use the extracted embeddings...")
             self.source_encoder = None
             self.source_tokenizer = None
@@ -129,6 +129,17 @@ class DecoderInference:
             X_pooled_train = torch.tensor(vecs["train"][:self.align_train_samples], dtype=torch.float32).to(self.device)
             X_pooled_val = torch.tensor(vecs["dev"][:self.align_test_samples], dtype=torch.float32).to(self.device)
             X_pooled_test = torch.tensor(vecs["test"][:self.align_test_samples], dtype=torch.float32).to(self.device)
+
+        elif self.source_model_name == "random":
+            hidden_dim = 768
+            X_train = torch.randn(self.align_train_samples, hidden_dim)
+            X_val = torch.randn(self.align_test_samples, hidden_dim)
+            X_test = torch.randn(self.align_test_samples, hidden_dim)
+            # normalize
+            X_pooled_train = torch.nn.functional.normalize(X_train, p=2, dim=1).to(self.device)
+            X_pooled_val = torch.nn.functional.normalize(X_val, p=2, dim=1).to(self.device)
+            X_pooled_test = torch.nn.functional.normalize(X_test, p=2, dim=1).to(self.device)
+
         else:
             # get x embeddings.
             # handle texts one by one because we only get mean_pooled embeddings.
@@ -246,8 +257,9 @@ def main(
 ):
     test_samples = 200
     if "flan-t5-small" in checkpoint_path:
-        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german",
-                          "yiyic/mmarco_spanish", "yiyic/mmarco_french"]
+        datasets_names = ["yiyic/multiHPLT_english"]
+        # [ "yiyic/mmarco_english", "yiyic/mmarco_german",
+        # "yiyic/mmarco_spanish", "yiyic/mmarco_french"]
     else:
         datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german",
                           "yiyic/mmarco_spanish", "yiyic/mmarco_french",
@@ -255,22 +267,23 @@ def main(
 
     # write a loop on source model names.
     source_model_names = [
-        "text-embedding-ada-002",
-        # "text-embedding-3-large",
-        "sentence-transformers/gtr-t5-base",
-        # "intfloat/multilingual-e5-base",
-        # "google/flan-t5-base",
-        "google-t5/t5-base",
-        "google/mt5-base",
-        "google-bert/bert-base-multilingual-cased",
-        # "sentence-transformers/all-MiniLM-L6-v2"  # sbert
+        "random",
+        # "text-embedding-ada-002",
+        # # "text-embedding-3-large",
+        # "sentence-transformers/gtr-t5-base",
+        # # "intfloat/multilingual-e5-base",
+        # # "google/flan-t5-base",
+        # "google-t5/t5-base",
+        # "google/mt5-base",
+        # "google-bert/bert-base-multilingual-cased",
+        # # "sentence-transformers/all-MiniLM-L6-v2"  # sbert
     ]
 
     for source_model_name in source_model_names:
         for test_data in tqdm(datasets_names):
-            # for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
+            for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
             # for train_samples in [2000, 3000, 4000, 5000, 6000, 7000, 8000]:
-            for train_samples in [1, 10, 100, 1000]:
+            # for train_samples in [1, 10, 100, 1000]:
                 source_model_name_ = source_model_name.replace("/", "_")
                 test_dataset_ = test_data.replace("/", "_")
                 output_dir = os.path.join(checkpoint_path,
