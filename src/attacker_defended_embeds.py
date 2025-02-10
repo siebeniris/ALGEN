@@ -34,7 +34,7 @@ class DecoderInferenceDefense:
                  align_train_samples: int,
                  align_test_samples: int,
                  test_dataset: str,
-                 outputdir:str
+                 outputdir: str
                  ):
         """
         Initialize the inference class.
@@ -145,6 +145,16 @@ class DecoderInferenceDefense:
             X_pooled_val = torch.tensor(vecs["dev"][:self.align_test_samples], dtype=torch.float32).to(self.device)
             X_pooled_test = torch.tensor(vecs["test"][:self.align_test_samples], dtype=torch.float32).to(self.device)
 
+        elif self.source_model_name == "random":
+            hidden_dim = 768
+            X_train = torch.randn(self.align_train_samples, hidden_dim)
+            X_val = torch.randn(self.align_test_samples, hidden_dim)
+            X_test = torch.randn(self.align_test_samples, hidden_dim)
+            # normalize
+            X_pooled_train = torch.nn.functional.normalize(X_train, p=2, dim=1)
+            X_pooled_val = torch.nn.functional.normalize(X_val, p=2, dim=1)
+            X_pooled_test = torch.nn.functional.normalize(X_test, p=2, dim=1)
+
         else:
             # get x embeddings.
             # handle texts one by one because we only get mean_pooled embeddings.
@@ -191,7 +201,7 @@ class DecoderInferenceDefense:
         elif self.defense_method == "Shuffling":
             print(f"applying defense shuffling")
             X_p_train, X_p_val, X_p_test, Y_test_attention_perm = shuffle_embeddings(X_pooled_train, X_pooled_val,
-                                                                                    X_pooled_test, Y_test_attention)
+                                                                                     X_pooled_test, Y_test_attention)
             Y_test_attention = Y_test_attention_perm
 
         elif self.defense_method == 'dp_Gaussian':
@@ -367,15 +377,16 @@ def main(
     # datasets_names = ["yiyic/snli_1k"]
     # write a loop on source model names.
     source_model_names = [
-        "text-embedding-ada-002",
+        # "text-embedding-ada-002",
         # "text-embedding-3-large",
-        "sentence-transformers/gtr-t5-base",
+        # "sentence-transformers/gtr-t5-base",
         # "intfloat/multilingual-e5-base",
         # "google/flan-t5-base",
-        "google-t5/t5-base",
-        "google/mt5-base",
-        "google-bert/bert-base-multilingual-cased",
+        # "google-t5/t5-base",
+        # "google/mt5-base",
+        # "google-bert/bert-base-multilingual-cased",
         # "sentence-transformers/all-MiniLM-L6-v2"  # sbert
+        "random"
     ]
     outputdir = os.path.join(checkpoint_path, "defenses")
 
@@ -390,7 +401,10 @@ def main(
             delta_list = [1e-3, 1e-4, 1e-5, 1e-6]
             epsilon_list = [0.01, 0.05, 0.1, 0.5, 1.0]
 
-            epsilon_list_dp = [1,4,8,12]
+            epsilon_list_dp = [1, 4, 8, 12]
+
+            defense_output(checkpoint_path, outputdir, "NoDefense", 0, 0, 0, test_data, source_model_name,
+                           train_samples, test_samples)
 
             for epsilon in epsilon_list_dp:
                 defense_output(checkpoint_path, outputdir, "PurMech", 0, epsilon, 0,
@@ -401,21 +415,13 @@ def main(
                                test_data, source_model_name,
                                train_samples, test_samples)
 
-            # defense_output(checkpoint_path, outputdir, "NoDefense", 0, 0, 0, test_data, source_model_name,
-            #                train_samples, test_samples)
-            #
-            # for defense_method in ["WET"]:  # Shuffling
-            #     defense_output(checkpoint_path, outputdir, defense_method, 0, 0, 0,
-            #                    test_data, source_model_name, train_samples, test_samples)
-            #
-            # for noise_level in guassian_noise_levels:
-            #     defense_output(checkpoint_path, outputdir, "Gaussian", noise_level, 0, 0, test_data, source_model_name,
-            #                    train_samples, test_samples)
-            #
-            # for dp_delta in delta_list:
-            #     for dp_epsilon in epsilon_list:
-            #         defense_output(checkpoint_path, outputdir, "dp_Gaussian", 0, dp_epsilon, dp_delta, test_data,
-            #                        source_model_name, train_samples, test_samples)
+            for defense_method in ["WET"]:  # Shuffling
+                defense_output(checkpoint_path, outputdir, defense_method, 0, 0, 0,
+                               test_data, source_model_name, train_samples, test_samples)
+
+            for noise_level in guassian_noise_levels:
+                defense_output(checkpoint_path, outputdir, "Gaussian", noise_level, 0, 0, test_data, source_model_name,
+                               train_samples, test_samples)
 
 
 if __name__ == '__main__':
