@@ -3,7 +3,9 @@ from src.classifiers.trainer import fine_tune
 source_models = ["google-t5/t5-base", "google/mt5-base",
                  "sentence-transformers/gtr-t5-base",
                  "google-bert/bert-base-multilingual-cased",
-                 "text-embedding-ada-002"]
+                 "text-embedding-ada-002",
+                 "random"
+                 ]
 
 datasets_names = ["yiyic/snli_ds", "yiyic/sst2_ds", "yiyic/s140_ds"]
 

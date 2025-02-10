@@ -86,6 +86,7 @@ sbatch lumi_classifiers.sh yiyic/s140_ds sentiment 2 sentence-transformers/gtr-t
 
 sbatch lumi_classifiers.sh yiyic/s140_ds sentiment 2 text-embedding-ada-002 128 Shuffling 0 0 0
 
+sbatch lumi_classifiers.sh yiyic/s140_ds sentiment 2 random 128 Shuffling 0 0 0
 
 
 
@@ -104,6 +105,8 @@ sbatch lumi_classifiers.sh yiyic/snli_ds nli 3 sentence-transformers/gtr-t5-base
 
 sbatch lumi_classifiers.sh yiyic/snli_ds nli 3 text-embedding-ada-002 128 NoDefense 0 0 0
 
+sbatch lumi_classifiers.sh yiyic/snli_ds nli 3 random 128 NoDefense 0 0 0
+
 
 # ========
 sbatch lumi_classifiers.sh yiyic/sst2_ds sentiment 2 google-t5/t5-base 128 NoDefense 0 0 0
@@ -118,6 +121,7 @@ sbatch lumi_classifiers.sh yiyic/sst2_ds sentiment 2 sentence-transformers/gtr-t
 
 sbatch lumi_classifiers.sh yiyic/sst2_ds sentiment 2 text-embedding-ada-002 128 NoDefense 0 0 0
 
+sbatch lumi_classifiers.sh yiyic/sst2_ds sentiment 2 random 128 NoDefense 0 0 0
 
 # ========
 
@@ -134,3 +138,4 @@ sbatch lumi_classifiers.sh yiyic/s140_ds sentiment 2 sentence-transformers/gtr-t
 
 sbatch lumi_classifiers.sh yiyic/s140_ds sentiment 2 text-embedding-ada-002 128 NoDefense 0 0 0
 
+sbatch lumi_classifiers.sh yiyic/s140_ds sentiment 2 random 128 NoDefense 0 0 0
