@@ -151,9 +151,9 @@ class DecoderInferenceDefense:
             X_val = torch.randn(self.align_test_samples, hidden_dim)
             X_test = torch.randn(self.align_test_samples, hidden_dim)
             # normalize
-            X_pooled_train = torch.nn.functional.normalize(X_train, p=2, dim=1)
-            X_pooled_val = torch.nn.functional.normalize(X_val, p=2, dim=1)
-            X_pooled_test = torch.nn.functional.normalize(X_test, p=2, dim=1)
+            X_pooled_train = torch.nn.functional.normalize(X_train, p=2, dim=1).to(self.device)
+            X_pooled_val = torch.nn.functional.normalize(X_val, p=2, dim=1).to(self.device)
+            X_pooled_test = torch.nn.functional.normalize(X_test, p=2, dim=1).to(self.device)
 
         else:
             # get x embeddings.
