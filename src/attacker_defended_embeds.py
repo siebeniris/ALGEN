@@ -398,8 +398,6 @@ def main(
             train_samples = 1000
 
             guassian_noise_levels = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
-            delta_list = [1e-3, 1e-4, 1e-5, 1e-6]
-            epsilon_list = [0.01, 0.05, 0.1, 0.5, 1.0]
 
             epsilon_list_dp = [1, 4, 8, 12]
 
