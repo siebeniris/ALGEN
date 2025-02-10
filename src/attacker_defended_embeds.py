@@ -90,7 +90,7 @@ class DecoderInferenceDefense:
 
         self.target_encoder = self.trainer.encoder
         self.target_tokenizer = self.trainer.tokenizer
-        if self.source_model_name in ["text-embedding-3-large", "text-embedding-ada-002"]:
+        if self.source_model_name in ["text-embedding-3-large", "text-embedding-ada-002", "random"]:
             print("Use the extracted embeddings...")
             self.source_encoder = None
             self.source_tokenizer = None
