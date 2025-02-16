@@ -43,6 +43,8 @@ for source_model, model_name in source_model_dict.items():
         preds_tokens = get_ent_and_types(preds)
         refers_tokens = get_ent_and_types(refers)
 
+
+
         print("eval ", source_model)
         eval_results = evaluate_ner(refers_tokens, preds_tokens)
         print(eval_results)
