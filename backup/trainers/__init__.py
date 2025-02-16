@@ -1,1 +1,0 @@
-from .inversionTrainer import FewShotInversionTrainer
