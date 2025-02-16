@@ -3,7 +3,7 @@
 __Yiyi Chen__, Qiongkai Xu (Correspondence author), Johannes Bjerva
 
 
-![ALGEN](Figure2_07.pdf)
+[//]: # (![ALGEN]&#40;Figure2_07.pdf&#41;)
 
 ## Setup Conda Environment
 ```
