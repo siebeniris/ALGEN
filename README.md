@@ -1,9 +1,9 @@
 # ALGEN: Few-shot Inversion Attacks on Textual Embeddings using Alignment and Generation
 
-_Yiyi Chen, Qiongkai Xu (Correspondence author), Johannes Bjerva_
+__Yiyi Chen__ (code), Qiongkai Xu (Correspondence), Johannes Bjerva_
 
 
-# set up environment
+## Setup Conda Environment
 ```
 conda create -n fewshot python=3.12
 
@@ -11,4 +11,7 @@ pip3 install torch torchvision torchaudio
 
 pip3 install -r requirements.txt
 ```
+
+
+## Decoder fine-tuning
 
