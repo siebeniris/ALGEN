@@ -64,3 +64,17 @@ python -m src.classifiers.trainer ${dataset_name} ${task_name} ${num_labels} ${m
 ```
 
 
+### Citation 
+```
+@misc{chen2025algenfewshotinversionattacks,
+      title={ALGEN: Few-shot Inversion Attacks on Textual Embeddings using Alignment and Generation}, 
+      author={Yiyi Chen and Qiongkai Xu and Johannes Bjerva},
+      year={2025},
+      eprint={2502.11308},
+      archivePrefix={arXiv},
+      primaryClass={cs.CR},
+      url={https://arxiv.org/abs/2502.11308}, 
+}
+```
+
+
