@@ -240,15 +240,15 @@ class DecoderInference:
         # mapping with normal equation.
         if reg_lambda:
             print(f"Implementing regularization ridge with lambda {reg_lambda}...")
-            As = torch.linalg.pinv(X.T @ X) @ X.T @ Y
-            Xs = X @ As
-            return Xs, As
-        else:
-            print("No regularization")
             lhs = X.T @ X
             rhs = X.T @ Y
             ridge = reg_lambda * torch.eye(lhs.shape[0], dtype=X.dtype)
             As = torch.linalg.pinv(lhs + ridge) @ rhs
+            Xs = X @ As
+            return Xs, As
+        else:
+            print("No regularization")
+            As = torch.linalg.pinv(X.T @ X) @ X.T @ Y
             Xs = X @ As
             return Xs, As
 
