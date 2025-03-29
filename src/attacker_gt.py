@@ -242,7 +242,7 @@ class DecoderInference:
             print(f"Implementing regularization ridge with lambda {reg_lambda}...")
             lhs = X.T @ X
             rhs = X.T @ Y
-            ridge = reg_lambda * torch.eye(lhs.shape[0], dtype=X.dtype)
+            ridge = reg_lambda * torch.eye(lhs.shape[0], dtype=X.dtype).to(X.device)
             As = torch.linalg.pinv(lhs + ridge) @ rhs
             Xs = X @ As
             return Xs, As
@@ -288,7 +288,6 @@ def main(
 
     # write a loop on source model names.
     source_model_names = [
-        "random",
         "text-embedding-ada-002",
         "text-embedding-3-large",
         "sentence-transformers/gtr-t5-base",
@@ -297,6 +296,7 @@ def main(
         "google-t5/t5-base",
         "google/mt5-base",
         "google-bert/bert-base-multilingual-cased",
+        "random"
         # "sentence-transformers/all-MiniLM-L6-v2"  # sbert
     ]
 
