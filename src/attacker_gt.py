@@ -196,7 +196,8 @@ class DecoderInference:
             "X_Y_test_COS": X_Y_test_cos.item(),
             "X_Y_test_MSEloss": X_Y_test_mseloss.item(),
             "X_Y_val_COS": X_Y_val_cos.item(),
-            "X_Y_val_MSEloss": X_Y_val_mseloss.item()
+            "X_Y_val_MSEloss": X_Y_val_mseloss.item(),
+            "reg_lambda": self.reg_lambda if self.reg_lambda else 0
         }
         # print(self.align_metrics)
 
