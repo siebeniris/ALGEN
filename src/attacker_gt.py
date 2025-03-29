@@ -24,7 +24,9 @@ class DecoderInference:
                  source_model_name: str,
                  align_train_samples: int,
                  align_test_samples: int,
-                 test_dataset: str):
+                 test_dataset: str,
+                 regularization: bool,
+                 reg_lambda: float):
         """
         Initialize the inference class.
         :param checkpoint_path:
@@ -64,6 +66,10 @@ class DecoderInference:
         self.target_model_name = self.args["model_name"]
         self.test_dataset = test_dataset
         self.source_model_name = source_model_name
+
+        # regularization
+        self.regularization = regularization
+        self.reg_lambda = reg_lambda
 
         self.device = self.trainer.device
         # load the best model
@@ -148,9 +154,9 @@ class DecoderInference:
             X_pooled_train = get_mean_X(true_train_texts, self.source_tokenizer, self.source_encoder, self.device,
                                         normalization=True)
             X_pooled_val = get_mean_X(true_val_texts, self.source_tokenizer, self.source_encoder, self.device,
-                                    normalization=True)
+                                      normalization=True)
             X_pooled_test = get_mean_X(true_test_texts, self.source_tokenizer, self.source_encoder, self.device,
-                                    normalization=True)
+                                       normalization=True)
 
         check_normalization(X_pooled_train, "X train")
         check_normalization(X_pooled_val, "X val")
@@ -166,13 +172,16 @@ class DecoderInference:
         check_normalization(Y_pooled_val, "Y val")
         check_normalization(Y_pooled_test, "Y test")
 
+        # TODO: ADD REGULARIZATION
         # train data to align.
-        X_aligned, T = self.mapping_X_to_Y_pooled(X_pooled_train, Y_pooled_train)
+        if self.regularization:
+            X_aligned, T = self.mapping_X_to_Y_pooled(X_pooled_train, Y_pooled_train, self.reg_lambda)
+        else:
+            X_aligned, T = self.mapping_X_to_Y_pooled(X_pooled_train, Y_pooled_train)
+
         self.source_hidden_dim, self.target_hidden_dim = T.shape
 
-
         # save T.
-
         X_val_aligned = X_pooled_val @ T
         X_test_aligned = X_pooled_test @ T
 
@@ -226,11 +235,21 @@ class DecoderInference:
         test_gen_results = self.trainer.eval_texts(all_predictions, all_references)
         return test_gen_results, all_predictions, all_references
 
-    def mapping_X_to_Y_pooled(self, X, Y):
-        # mappting with normal equation.
-        As = torch.linalg.pinv(X.T @ X) @ X.T @ Y
-        Xs = X @ As
-        return Xs, As
+    def mapping_X_to_Y_pooled(self, X, Y, reg_lambda=None):
+        # mapping with normal equation.
+        if reg_lambda:
+            print(f"Implementing regularization ridge with lambda {reg_lambda}...")
+            As = torch.linalg.pinv(X.T @ X) @ X.T @ Y
+            Xs = X @ As
+            return Xs, As
+        else:
+            print("No regularization")
+            lhs = X.T @ X
+            rhs = X.T @ Y
+            ridge = reg_lambda * torch.eye(lhs.shape[0], dtype=X.dtype)
+            As = torch.linalg.pinv(lhs + ridge) @ rhs
+            Xs = X @ As
+            return Xs, As
 
     def load_best_model(self):
         """
@@ -257,68 +276,69 @@ def main(
 ):
     test_samples = 200
     if "flan-t5-small" in checkpoint_path:
+        # trained with multiHPLT english data.
         datasets_names = ["yiyic/multiHPLT_english"]
-        # [ "yiyic/mmarco_english", "yiyic/mmarco_german",
-        # "yiyic/mmarco_spanish", "yiyic/mmarco_french"]
+
     else:
-        datasets_names = ["yiyic/multiHPLT_english", "yiyic/mmarco_english", "yiyic/mmarco_german",
+        datasets_names = ["yiyic/multiHPLT_english",
+                          "yiyic/mmarco_english", "yiyic/mmarco_german",
                           "yiyic/mmarco_spanish", "yiyic/mmarco_french",
                           "yiyic/mmarco_chinese", "yiyic/mmarco_vietnamese"]
 
     # write a loop on source model names.
     source_model_names = [
         "random",
-        # "text-embedding-ada-002",
-        # # "text-embedding-3-large",
-        # "sentence-transformers/gtr-t5-base",
-        # # "intfloat/multilingual-e5-base",
-        # # "google/flan-t5-base",
-        # "google-t5/t5-base",
-        # "google/mt5-base",
-        # "google-bert/bert-base-multilingual-cased",
-        # # "sentence-transformers/all-MiniLM-L6-v2"  # sbert
+        "text-embedding-ada-002",
+        "text-embedding-3-large",
+        "sentence-transformers/gtr-t5-base",
+        # "intfloat/multilingual-e5-base",
+        # "google/flan-t5-base",
+        "google-t5/t5-base",
+        "google/mt5-base",
+        "google-bert/bert-base-multilingual-cased",
+        # "sentence-transformers/all-MiniLM-L6-v2"  # sbert
     ]
 
     for source_model_name in source_model_names:
         for test_data in tqdm(datasets_names):
-            for train_samples in [1, 3, 5, 10, 20, 30, 40, 50, 100, 500, 1000]:
-            # for train_samples in [2000, 3000, 4000, 5000, 6000, 7000, 8000]:
-            # for train_samples in [1, 10, 100, 1000]:
+            for train_samples in [1, 10, 30, 100, 300, 500, 1000]:
+                # for train_samples in [2000, 3000, 4000, 5000, 6000, 7000, 8000]:
+                # for train_samples in [1, 10, 100, 1000]:
                 source_model_name_ = source_model_name.replace("/", "_")
                 test_dataset_ = test_data.replace("/", "_")
-                output_dir = os.path.join(checkpoint_path,
-                                          f"attack_{test_dataset_}_{source_model_name_}_train{train_samples}")
 
                 # if not os.path.exists(output_dir):
-                print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
-                decoderInference = DecoderInference(checkpoint_path, source_model_name,
-                                                    train_samples, test_samples, test_data)
+                for reg_lambda in [0.001, 0.01, 0.1, 1, 10]:
+                    output_dir = os.path.join(checkpoint_path,
+                                              f"attack_{test_dataset_}_{source_model_name_}_train{train_samples}_ridge{reg_lambda}")
 
-                test_results, preds, references = decoderInference.test()
-                # TODO: add translation here.
-                # translate the decoded into fine-tuned language.
-                # extract language from checkpoints and dataset name
-                # use easy nmt
+                    print(f"attacking embeddings from {source_model_name} with {train_samples} train samples")
 
-                df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
+                    decoderInference = DecoderInference(checkpoint_path, source_model_name,
+                                                        train_samples, test_samples, test_data,
+                                                        regularization=True, reg_lambda=reg_lambda)
 
-                results_dict = {
-                    "train_samples": train_samples,
-                    "test_samples": test_samples,
-                    "source_model": source_model_name,
-                    "source_dim": decoderInference.source_hidden_dim,
-                    "target_dim": decoderInference.target_hidden_dim,
-                    "test_results": test_results,
-                    "loss": decoderInference.align_metrics
-                }
-                print(results_dict)
+                    test_results, preds, references = decoderInference.test()
 
-                print(f"writing the results to {output_dir}")
-                os.makedirs(output_dir, exist_ok=True)
-                df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
-                with open(os.path.join(output_dir, "results.json"), "w") as f:
-                    json.dump(results_dict, f)
-                print("*" * 40)
+                    df_preds_ref = pd.DataFrame({"predictions": preds, "reference": references})
+
+                    results_dict = {
+                        "train_samples": train_samples,
+                        "test_samples": test_samples,
+                        "source_model": source_model_name,
+                        "source_dim": decoderInference.source_hidden_dim,
+                        "target_dim": decoderInference.target_hidden_dim,
+                        "test_results": test_results,
+                        "loss": decoderInference.align_metrics
+                    }
+                    print(results_dict)
+
+                    print(f"writing the results to {output_dir}")
+                    os.makedirs(output_dir, exist_ok=True)
+                    df_preds_ref.to_csv(os.path.join(output_dir, "results_texts.csv"))
+                    with open(os.path.join(output_dir, "results.json"), "w") as f:
+                        json.dump(results_dict, f)
+                    print("*" * 40)
 
 
 if __name__ == '__main__':

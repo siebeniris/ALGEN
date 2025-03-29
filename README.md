@@ -39,7 +39,7 @@ python src/exp.py \
 
 ### 2. Embedding alignment and Inversion Attack 
 
-* with the Checkpont from 1
+* with the Checkpoint from 1
 
 ```
 python src/attacker_gt.py ${CHECKPOINT_PATH}

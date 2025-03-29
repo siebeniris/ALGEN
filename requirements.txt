@@ -16,3 +16,4 @@ gensim
 pot
 wandb
 rouge-score
+dotenv
