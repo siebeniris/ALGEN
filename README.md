@@ -14,6 +14,10 @@ pip3 install torch torchvision torchaudio
 pip3 install -r requirements.txt
 ```
 
+## Materials
+
+Trained attack models, used Datasets (cited in the paper), and extracted embeddings are publicly available in [Zenodo repository](https://zenodo.org/records/15639971).
+
 
 ## Few-shot Inversion Attack
 ### 1. Train Embedding-to-Text Generator 
