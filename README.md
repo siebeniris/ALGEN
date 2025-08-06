@@ -70,15 +70,29 @@ python -m src.classifiers.trainer ${dataset_name} ${task_name} ${num_labels} ${m
 
 ### Citation 
 ```
-@misc{chen2025algenfewshotinversionattacks,
-      title={ALGEN: Few-shot Inversion Attacks on Textual Embeddings using Alignment and Generation}, 
-      author={Yiyi Chen and Qiongkai Xu and Johannes Bjerva},
-      year={2025},
-      eprint={2502.11308},
-      archivePrefix={arXiv},
-      primaryClass={cs.CR},
-      url={https://arxiv.org/abs/2502.11308}, 
+@inproceedings{chen-etal-2025-algen,
+    title = "{ALGEN}: Few-shot Inversion Attacks on Textual Embeddings via Cross-Model Alignment and Generation",
+    author = "Chen, Yiyi  and
+      Xu, Qiongkai  and
+      Bjerva, Johannes",
+    editor = "Che, Wanxiang  and
+      Nabende, Joyce  and
+      Shutova, Ekaterina  and
+      Pilehvar, Mohammad Taher",
+    booktitle = "Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
+    month = jul,
+    year = "2025",
+    address = "Vienna, Austria",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2025.acl-long.1185/",
+    doi = "10.18653/v1/2025.acl-long.1185",
+    pages = "24330--24348",
+    ISBN = "979-8-89176-251-0"
 }
 ```
+
+### Disclaimer
+
+The open-sourced code, vectors and models are for research purpose only.
 
 
